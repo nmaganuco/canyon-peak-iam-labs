@@ -1,0 +1,20 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+
+# Scratch / pending deletion
+_to_delete/
+
+# Never commit credentials, tenant secrets, or exported metadata
+*.env
+secrets/
+*.key
+*.pem
+*_credentials*
+okta-api-token*
+*metadata.xml
