@@ -1,11 +1,17 @@
 # Lab 00 — Domain Controller & AD Foundation
 
 **Status:** Not started
-**Scenario:** Standing up the `canyonpeak.local` domain from bare metal (well, bare VM) before any Okta work begins.
+**Scenario:** Standing up the `corp.canyonpeaktech.com` domain from bare metal (well, bare VM) before any Okta work begins.
 
 ## Objective
 
-Provision a dedicated Windows Server 2022 VM, promote it to the first domain controller of a brand-new forest (`canyonpeak.local`), and lay down the base OU structure the rest of the series depends on. This is deliberately a **separate environment** from my existing home lab domain — Canyon Peak gets its own clean forest so nothing here touches the AD/DNS/DHCP setup I already run day to day.
+Provision a dedicated Windows Server 2022 VM, promote it to the first domain controller of a brand-new forest (`corp.canyonpeaktech.com`), and lay down the base OU structure the rest of the series depends on. This is deliberately a **separate environment** from my existing home lab domain — Canyon Peak gets its own clean forest so nothing here touches the AD/DNS/DHCP setup I already run day to day.
+
+## A note on the domain name
+
+The AD domain is `corp.canyonpeaktech.com` — a subdomain of the public domain Canyon Peak owns — rather than something like `canyonpeak.local`. Microsoft has advised against `.local` for Active Directory for years: it's reserved for multicast DNS (mDNS/Bonjour), so it can collide with name resolution on any network running Apple devices or Linux hosts with Avahi, and no public CA will issue a certificate for it if you later need one. Delegating a subdomain of a domain you actually control is the current recommended pattern and handles split-brain DNS cleanly.
+
+Staff still sign in as `first.last@canyonpeaktech.com` rather than the longer `@corp.canyonpeaktech.com`, using an alternative UPN suffix added in step 7. That keeps AD logon names identical to the email addresses and to the Okta usernames from Lab 01 — which matters, because Lab 02 matches AD accounts to existing Okta profiles by username.
 
 ## Prerequisites
 
@@ -52,7 +58,7 @@ Run the AD DS configuration wizard (the notification flag in Server Manager afte
 
 ```powershell
 Install-ADDSForest `
-    -DomainName "canyonpeak.local" `
+    -DomainName "corp.canyonpeaktech.com" `
     -DomainNetbiosName "CANYONPEAK" `
     -InstallDns:$true `
     -SafeModeAdministratorPassword (ConvertTo-SecureString "SetAStrongDSRMPassword!" -AsPlainText -Force) `
@@ -70,39 +76,53 @@ Get-ADDomain
 Get-Service ADWS, DNS, Netlogon, NTDS | Select-Object Name, Status
 ```
 
-All four services should show Running, and `Get-ADDomain` should return `canyonpeak.local` with no errors.
+All four services should show Running, and `Get-ADDomain` should return `corp.canyonpeaktech.com` with no errors.
 
-### 7. Build the base OU structure
+### 7. Add the alternative UPN suffix
+
+By default every account's UPN would be `first.last@corp.canyonpeaktech.com`, but staff email — and the Okta usernames created in Lab 01 — use the shorter `@canyonpeaktech.com`. Registering it as an alternative UPN suffix at the forest level lets accounts use the clean form:
+
+```powershell
+Set-ADForest -Identity (Get-ADForest) -UPNSuffixes @{Add="canyonpeaktech.com"}
+Get-ADForest | Select-Object -ExpandProperty UPNSuffixes
+```
+
+GUI equivalent: Active Directory Domains and Trusts → right-click the forest root → Properties → UPN Suffixes tab → Add.
+
+Once registered, `canyonpeaktech.com` shows up in the UPN drop-down when creating users in ADUC, and the Lab 06 joiner script sets it automatically. Skipping this step means AD logon names won't match the Okta usernames, and the account matching in Lab 02 will fail.
+
+### 8. Build the base OU structure
 
 Create the organizational units the rest of the series will use — for users, groups, and disabled/offboarded accounts:
 
 ```powershell
-New-ADOrganizationalUnit -Name "CanyonPeak-Users"    -Path "DC=canyonpeak,DC=local"
-New-ADOrganizationalUnit -Name "CanyonPeak-Groups"   -Path "DC=canyonpeak,DC=local"
-New-ADOrganizationalUnit -Name "CanyonPeak-Disabled" -Path "DC=canyonpeak,DC=local"
+New-ADOrganizationalUnit -Name "CanyonPeak-Users"    -Path "DC=corp,DC=canyonpeaktech,DC=com"
+New-ADOrganizationalUnit -Name "CanyonPeak-Groups"   -Path "DC=corp,DC=canyonpeaktech,DC=com"
+New-ADOrganizationalUnit -Name "CanyonPeak-Disabled" -Path "DC=corp,DC=canyonpeaktech,DC=com"
 ```
 
-### 8. Create a service account for lab automation
+### 9. Create a service account for lab automation
 
 The PowerShell scripts in Lab 06 need an account with rights to create/modify/disable/move AD objects. Rather than running everything as Domain Admin, create a dedicated account and delegate just the OU control needed:
 
 ```powershell
 New-ADUser -Name "svc-labautomation" -SamAccountName "svc-labautomation" `
-    -Path "DC=canyonpeak,DC=local" -Enabled $true `
+    -Path "DC=corp,DC=canyonpeaktech,DC=com" -Enabled $true `
     -AccountPassword (ConvertTo-SecureString "SetAStrongServiceAccountPassword!" -AsPlainText -Force) `
     -PasswordNeverExpires $true
 ```
 
 Then delegate control over the three OUs above to `svc-labautomation` via Delegation of Control Wizard in ADUC (or `dsacls`), scoped to create/delete/modify user and group objects — not full Domain Admin.
 
-### 9. Snapshot the VM
+### 10. Snapshot the VM
 
 Once the forest, OUs, and service account are confirmed working, take a clean VMware snapshot (`post-promotion-baseline`) before starting Lab 01. If a later lab goes sideways, this is the fast way back to a known-good state instead of rebuilding from scratch.
 
 ## Verification
 
-- `Get-ADDomain` returns `canyonpeak.local` with no errors
+- `Get-ADDomain` returns `corp.canyonpeaktech.com` with no errors
 - AD DS, DNS, Netlogon, and ADWS services are all Running
+- `Get-ADForest | Select -ExpandProperty UPNSuffixes` lists `canyonpeaktech.com`
 - Three OUs exist under the domain root: `CanyonPeak-Users`, `CanyonPeak-Groups`, `CanyonPeak-Disabled`
 - `svc-labautomation` exists and has delegated (not Domain Admin) rights over those three OUs
 - A clean VMware snapshot exists before any lab-specific configuration begins

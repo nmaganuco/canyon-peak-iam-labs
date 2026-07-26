@@ -1,7 +1,7 @@
 # Lab 02 — Active Directory Integration
 
 **Status:** Not started
-**Scenario:** Connecting Canyon Peak's new `canyonpeak.local` domain to the Okta tenant built in Lab 01.
+**Scenario:** Connecting Canyon Peak's new `corp.canyonpeaktech.com` domain to the Okta tenant built in Lab 01.
 
 ## Objective
 
@@ -9,7 +9,7 @@ Move Canyon Peak from Okta-native identities to a hybrid model where Active Dire
 
 ## Prerequisites
 
-- Lab 00 complete (`canyonpeak.local` domain controller live, with `CanyonPeak-Users`, `CanyonPeak-Groups`, and `CanyonPeak-Disabled` OUs in place)
+- Lab 00 complete (`corp.canyonpeaktech.com` domain controller live, with `CanyonPeak-Users`, `CanyonPeak-Groups`, and `CanyonPeak-Disabled` OUs in place)
 - Lab 01 complete (Okta tenant with users/groups/policies)
 - The four Lab 01 users and four department groups recreated as AD objects inside the `CanyonPeak-Users`/`CanyonPeak-Groups` OUs, matching the same names/attributes as the Okta side
 
@@ -24,7 +24,7 @@ Move Canyon Peak from Okta-native identities to a hybrid model where Active Dire
 
 ### 1. Install and register the AD Agent
 
-From Okta: Directory → Directory Integrations → Add Directory → Active Directory, download the agent installer, and run it on the `canyonpeak.local` domain controller. Authenticate the agent against the Okta org during setup, and scope it to just the two OUs created above — no reason to expose the whole domain to sync.
+From Okta: Directory → Directory Integrations → Add Directory → Active Directory, download the agent installer, and run it on the `corp.canyonpeaktech.com` domain controller. Authenticate the agent against the Okta org during setup, and scope it to just the two OUs created above — no reason to expose the whole domain to sync.
 
 ### 2. Full import and confirm assignments
 
@@ -36,7 +36,7 @@ Run an Incremental Import immediately after with no AD changes made. It should r
 
 ### 4. Delegated authentication
 
-Enable delegated authentication on the directory integration so Okta forwards password checks to `canyonpeak.local` instead of storing its own copy. Test it against one of the four existing users before rolling it out further.
+Enable delegated authentication on the directory integration so Okta forwards password checks to `corp.canyonpeaktech.com` instead of storing its own copy. Test it against one of the four existing users before rolling it out further.
 
 ### 5. Just-in-Time provisioning
 

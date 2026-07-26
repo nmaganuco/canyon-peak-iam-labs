@@ -1,7 +1,7 @@
 # Lab 06 — JML Lifecycle Automation
 
 **Status:** Not started
-**Scenario:** Automating joiner/mover/leaver events against `canyonpeak.local` with PowerShell, synced to Okta through the AD Agent from Lab 02.
+**Scenario:** Automating joiner/mover/leaver events against `corp.canyonpeaktech.com` with PowerShell, synced to Okta through the AD Agent from Lab 02.
 
 ## Objective
 
@@ -10,7 +10,7 @@ Replace manual AD Users and Computers clicking with scripts for the three lifecy
 ## Prerequisites
 
 - Labs 01–05 complete
-- PowerShell 7 and the ActiveDirectory module available on the `canyonpeak.local` domain controller
+- PowerShell 7 and the ActiveDirectory module available on the `corp.canyonpeaktech.com` domain controller
 - A `CanyonPeak-Disabled` OU already exists (created in Lab 03 for the leaver exercise)
 
 ## Environment & technologies
@@ -49,7 +49,7 @@ Build a small CSV (`scripts/sample-batch.csv` has a starting template) listing t
 
 ## Verification
 
-- Each script runs cleanly against `canyonpeak.local` with no manual AD console steps
+- Each script runs cleanly against `corp.canyonpeaktech.com` with no manual AD console steps
 - Okta reflects every AD-side change after the appropriate import
 - The batch script correctly handles at least two different event types in a single run
 

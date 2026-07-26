@@ -23,7 +23,7 @@ param(
 
 Import-Module ActiveDirectory -ErrorAction Stop
 
-$disabledOU = "OU=CanyonPeak-Disabled,DC=canyonpeak,DC=local"
+$disabledOU = "OU=CanyonPeak-Disabled,DC=corp,DC=canyonpeaktech,DC=com"
 
 $user = Get-ADUser -Identity $SamAccountName -Properties MemberOf -ErrorAction Stop
 

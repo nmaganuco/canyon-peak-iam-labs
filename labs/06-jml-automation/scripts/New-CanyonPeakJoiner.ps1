@@ -42,9 +42,9 @@ param(
 
 Import-Module ActiveDirectory -ErrorAction Stop
 
-$domain      = "canyonpeak.local"
+$domain      = "corp.canyonpeaktech.com"
 $upnSuffix   = "canyonpeaktech.com"
-$usersOU     = "OU=CanyonPeak-Users,DC=canyonpeak,DC=local"
+$usersOU     = "OU=CanyonPeak-Users,DC=corp,DC=canyonpeaktech,DC=com"
 $samAccount  = ("{0}.{1}" -f $FirstName, $LastName).ToLower()
 $upn         = "$samAccount@$upnSuffix"
 $displayName = "$FirstName $LastName"
@@ -53,9 +53,13 @@ if (Get-ADUser -Filter "SamAccountName -eq '$samAccount'" -ErrorAction SilentlyC
     throw "A user with SamAccountName '$samAccount' already exists. Aborting to avoid a duplicate account."
 }
 
-$tempPassword = ConvertTo-SecureString "ChangeMe!" + (Get-Random -Minimum 1000 -Maximum 9999) -AsPlainText -Force
+# Build the string first - inline concatenation in a parameter position does not parse
+$plainPassword = "ChangeMe!$(Get-Random -Minimum 1000 -Maximum 9999)"
+$tempPassword  = ConvertTo-SecureString $plainPassword -AsPlainText -Force
 
-Write-Host "Creating AD user: $displayName ($samAccount)" -ForegroundColor Cyan
+Write-Host "Creating AD user: $displayName ($samAccount) in $domain" -ForegroundColor Cyan
+Write-Host "  UPN: $upn" -ForegroundColor Gray
+Write-Host "  Temporary password (must be changed at first logon): $plainPassword" -ForegroundColor Gray
 
 New-ADUser `
     -Name $displayName `

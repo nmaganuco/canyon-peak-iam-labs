@@ -8,7 +8,7 @@ The series walks the full identity lifecycle end to end — tenant → directory
 
 **Canyon Peak Technologies** is a fictional managed IT services company headquartered in Salt Lake City, UT — a nod to home turf. Canyon Peak supports client environments with a small internal team spread across IT Operations, Security Operations, Client Services, and Finance. As the "IAM Engineer" for this scenario, I'm standing up Canyon Peak's Okta tenant, integrating it with a dedicated Active Directory domain, and building out the access model, SSO, adaptive MFA, and lifecycle automation a growing MSP would actually need.
 
-Fictional domain: `canyonpeak.local` (AD) / `canyonpeaktech.com` (UPN suffix / email)
+Fictional domain: `corp.canyonpeaktech.com` (AD) / `canyonpeaktech.com` (UPN suffix / email)
 
 Fictional staff used throughout the labs (all invented, no real people):
 
@@ -25,7 +25,7 @@ Fictional staff used throughout the labs (all invented, no real people):
 This series gets its **own dedicated domain and VM**, deliberately kept separate from the home lab I already run day to day — so nothing here disturbs an environment I depend on.
 
 - **Okta tenant:** Okta Integrator Free Plan (Identity Engine)
-- **Domain controller:** new Windows Server 2022 VM, `canyonpeak.local`
+- **Domain controller:** new Windows Server 2022 VM, `corp.canyonpeaktech.com`
 - **Hypervisor:** VMware (matches my existing home lab tooling)
 - **Directory sync:** Okta AD Agent installed on the new domain controller
 
