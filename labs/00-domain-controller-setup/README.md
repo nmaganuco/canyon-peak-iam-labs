@@ -128,7 +128,7 @@ Rename-Computer -NewName "CANYONPEAK-DC01" -Restart
 
 Name resolution will fail at this point — DNS now points at a machine that isn't running a DNS server yet. That's expected; it starts working in step 8. Test connectivity by IP for now (`ping 192.168.x.2`), not by name.
 
-📸 *Screenshot: the IPv4 properties dialog, or `Get-NetIPConfiguration`, showing the static address, gateway, and self-referencing DNS.*
+![static ip and self referencing dns](screenshots/01-static-ip-and-self-referencing-dns.png)
 
 ### 5. Install the AD DS role
 
