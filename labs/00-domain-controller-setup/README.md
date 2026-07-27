@@ -1,6 +1,6 @@
 # Lab 00 — Domain Controller & AD Foundation
 
-**Status:** In progress
+**Status:** Complete
 **Scenario:** Standing up the `corp.canyonpeaktech.com` domain from a bare VM, before any Okta work begins.
 
 ## Objective
@@ -318,11 +318,13 @@ If a later lab goes sideways, this is a two-minute recovery instead of rebuildin
 
 ## Notes
 
-_(fill in as completed — VMware networking quirks, DNS resolution issues, anything that didn't go to plan)_
+Deleting an OU is blocked by the *Protect container from accidental deletion* flag set at creation, and the checkbox to clear it sits on the Object tab — which is hidden until **View → Advanced Features** is enabled in ADUC. Worth remembering, because the resulting error reads "You do not have sufficient privileges," which points at permissions rather than at the flag actually causing it.
 
 ## Key takeaways
 
-_(fill in once complete)_
+Delegating `svc-labautomation` across three OUs rather than making it a Domain Admin is the small version of a habit that matters at scale. Adding it to Domain Admins would have been faster, and that shortcut is exactly how service accounts accumulate privilege in real environments. The Delegation of Control wizard scopes it properly in about a minute. In production this would be a Group Managed Service Account rather than a user account with a non-expiring password.
+
+The alternative UPN suffix looked cosmetic while I was configuring it, and isn't. Lab 02 matches Active Directory accounts to existing Okta profiles by username; if AD were handing out `first.last@corp.canyonpeaktech.com` while Okta held `first.last@canyonpeaktech.com`, that match would fail and the directory integration would appear to work while linking nothing. Registering the suffix at the forest level costs one dialog and prevents a confusing failure two labs downstream.
 
 ---
 
