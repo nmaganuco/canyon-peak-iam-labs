@@ -10,11 +10,20 @@ desktop.ini
 # Scratch / pending deletion
 _to_delete/
 
-# Never commit credentials, tenant secrets, or exported metadata
+# Credentials and secrets - never commit.
+# The real lab credentials file is deliberately kept OUTSIDE this repo;
+# these patterns are a second line of defence in case one ever lands inside it.
 *.env
 secrets/
 *.key
 *.pem
-*_credentials*
+*.pfx
+*.p12
+*credential*
+*password*
+*secret*
 okta-api-token*
+*token.txt
+
+# Exported IdP/SP metadata can contain tenant identifiers and certificates
 *metadata.xml
