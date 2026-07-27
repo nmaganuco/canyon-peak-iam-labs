@@ -20,6 +20,11 @@ Why this lab exists and what it proves.
 Numbered, in the order actually performed. Insert screenshots inline as you go:
 `![description](screenshots/01-example.png)`
 
+Screenshots live in this lab's `screenshots/` folder, named `NN-short-description.png`
+in capture order. File them with `tools/Add-LabScreenshot.ps1`, which handles the
+numbering and emits the Markdown line — see `tools/README.md`, including the
+redaction checklist to run through before committing any image.
+
 ## Verification
 
 Bullet list of what "this lab worked" looks like, concretely.

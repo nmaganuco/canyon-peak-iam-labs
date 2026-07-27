@@ -55,6 +55,8 @@ labs/
   06-jml-automation/scripts/   working PowerShell for the lifecycle automation lab
 templates/
   LAB_TEMPLATE.md
+tools/
+  Add-LabScreenshot.ps1        files screenshots into the right lab, numbered
 RESOURCES.md
 ```
 
