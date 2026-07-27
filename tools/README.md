@@ -15,7 +15,15 @@ cd F:\Claude-Github
 .\tools\Add-LabScreenshot.ps1 -Lab 00 -Name "Get-ADDomain output"
 ```
 
-Each run takes the **newest** image from `Pictures\Screenshots`, moves it to `labs/00-domain-controller-setup/screenshots/` as `01-forest-promotion-complete.png`, `02-get-addomain-output.png`, and so on, then copies the Markdown reference to your clipboard.
+Each run takes the **newest** image from `Pictures\Screenshots`, moves it to `labs/00-domain-controller-setup/screenshots/` as `01-forest-promotion-complete.png`, `02-get-addomain-output.png`, and so on, then copies the Markdown reference to your clipboard. It prints which source file it consumed and when that was captured, so a mismatch is obvious immediately.
+
+**Filing a batch after the fact? Use `-Oldest`.** The default takes the newest image, which is right when you capture one shot and file it straight away. But if you take several and then file them in one go, the newest gets consumed first and your names end up attached to the wrong images, in reverse. `-Oldest` walks the folder oldest-first so a batch lines up with the order you took them:
+
+```powershell
+.\tools\Add-LabScreenshot.ps1 -Lab 00 -Name "first thing I captured"  -Oldest
+.\tools\Add-LabScreenshot.ps1 -Lab 00 -Name "second thing I captured" -Oldest
+.\tools\Add-LabScreenshot.ps1 -Lab 00 -Name "third thing I captured"  -Oldest
+```
 
 3. Paste the Markdown into the lab's `README.md` at the step it illustrates.
 
@@ -26,6 +34,7 @@ Each run takes the **newest** image from `Pictures\Screenshots`, moves it to `la
 | `-Lab` | Lab number or folder name. `00`, `0`, and `00-domain-controller-setup` all work. |
 | `-Name` | Short description; gets slugified into the filename. |
 | `-File` | Use a specific file instead of the newest screenshot. |
+| `-Oldest` | Take the oldest image rather than the newest. Use when filing a batch in capture order. |
 | `-SourceFolder` | Override where incoming screenshots are read from. |
 | `-KeepOriginal` | Copy rather than move, leaving the original in place. |
 

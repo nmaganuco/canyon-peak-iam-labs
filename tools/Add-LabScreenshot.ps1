@@ -27,14 +27,25 @@
 .PARAMETER File
     Use a specific image file instead of the newest one in SourceFolder.
 
+.PARAMETER Oldest
+    Take the OLDEST image in the folder rather than the newest. Use this when
+    filing several screenshots at once: without it the newest is consumed first,
+    so a batch ends up named in reverse order.
+
 .PARAMETER KeepOriginal
     Copy instead of move, leaving the original in place.
 
 .EXAMPLE
     ./Add-LabScreenshot.ps1 -Lab 00 -Name "forest promotion complete"
 
+    Capture-then-file-immediately. Takes the newest screenshot.
+
 .EXAMPLE
-    ./Add-LabScreenshot.ps1 -Lab 02 -Name "ad agent healthy" -KeepOriginal
+    ./Add-LabScreenshot.ps1 -Lab 00 -Name "first thing I captured"  -Oldest
+    ./Add-LabScreenshot.ps1 -Lab 00 -Name "second thing I captured" -Oldest
+    ./Add-LabScreenshot.ps1 -Lab 00 -Name "third thing I captured"  -Oldest
+
+    Filing a batch after the fact, in the order the shots were taken.
 #>
 
 [CmdletBinding()]
@@ -50,6 +61,8 @@ param(
     [string]$File,
 
     [string]$RepoRoot,
+
+    [switch]$Oldest,
 
     [switch]$KeepOriginal
 )
@@ -93,15 +106,19 @@ if ($File) {
     if (-not (Test-Path $SourceFolder)) {
         throw "Screenshot folder not found: $SourceFolder`nPress Win+PrtScn to capture, or pass -File / -SourceFolder."
     }
-    $source = Get-ChildItem -Path $SourceFolder -File |
-              Where-Object { $_.Extension -in '.png', '.jpg', '.jpeg' } |
-              Sort-Object LastWriteTime -Descending |
-              Select-Object -First 1
-    if (-not $source) { throw "No image files found in $SourceFolder" }
+    # Default picks the NEWEST image, which is right for capture-then-file-immediately.
+    # -Oldest picks the oldest instead, which is what you want when filing a batch of
+    # shots in the order you took them - otherwise the names end up reversed.
+    $candidates = Get-ChildItem -Path $SourceFolder -File |
+                  Where-Object { $_.Extension -in '.png', '.jpg', '.jpeg' } |
+                  Sort-Object LastWriteTime
+    if (-not $candidates) { throw "No image files found in $SourceFolder" }
+
+    $source = if ($Oldest) { @($candidates)[0] } else { @($candidates)[-1] }
 
     $ageMinutes = ([DateTime]::Now - $source.LastWriteTime).TotalMinutes
     if ($ageMinutes -gt 30) {
-        Write-Warning ("Newest screenshot is {0:N0} minutes old ({1}). Is that the one you meant?" -f $ageMinutes, $source.Name)
+        Write-Warning ("That screenshot was taken {0:N0} minutes ago. Is it the one you meant?" -f $ageMinutes)
     }
 }
 
@@ -130,6 +147,7 @@ if ($KeepOriginal) {
 # --- report ---
 $sizeKB = [math]::Round((Get-Item $targetPath).Length / 1KB)
 Write-Host ""
+Write-Host ("  Took : {0}  (captured {1:HH:mm:ss})" -f $source.Name, $source.LastWriteTime) -ForegroundColor DarkGray
 Write-Host "  Filed: $targetName  (${sizeKB} KB)" -ForegroundColor Green
 Write-Host "  Into : labs/$($labFolder.Name)/screenshots/" -ForegroundColor Gray
 if ($sizeKB -gt 1024) {

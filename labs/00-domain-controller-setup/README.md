@@ -67,8 +67,6 @@ Power on and press a key when prompted to boot from the ISO.
 
 Then install VMware Tools (**VM → Install VMware Tools**, run setup from the mounted drive) for proper display scaling and mouse integration, and reboot.
 
-📸 *Screenshot: Server Manager on first boot, showing the Desktop Experience install.*
-
 ### 3. Find the NAT subnet
 
 VMware assigns a random subnet to VMnet8 per installation, so check yours rather than assuming.
@@ -184,7 +182,7 @@ Install-ADDSForest `
 `Read-Host` rather than an inline password keeps it out of PowerShell history and out of any screenshot.
 </details>
 
-📸 *Screenshot: the promotion wizard's Deployment Configuration page, and the sign-in screen afterwards showing `CANYONPEAK\Administrator`.*
+![signed in to canyonpeak domain](screenshots/02-signed-in-to-canyonpeak-domain.png)
 
 ### 7. Validate the forest before building on it
 
@@ -202,7 +200,7 @@ Get-Service ADWS, DNS, Netlogon, NTDS | Select-Object Name, Status
 
 `dcdiag /q` only reports failures, so **no output is a pass**. All four services should show Running.
 
-📸 *Screenshot: ADUC showing the new domain, and `dcdiag /q` returning clean.*
+![ADUC showing the new domain, and dcdiag /q](screenshots/03-aduc-showing-the-new-domain-and-dcdiag-q.png)
 
 ### 8. Fix DNS forwarding, then add the UPN suffix
 
@@ -232,7 +230,7 @@ Get-ADForest | Select-Object -ExpandProperty UPNSuffixes
 ```
 </details>
 
-📸 *Screenshot: the Forwarders tab, and the UPN Suffixes tab showing `canyonpeaktech.com`.*
+![The Forwarders tab, and the UPN Suffixes](screenshots/04-the-forwarders-tab-and-the-upn-suffixes.png)
 
 ### 9. Build the base OU structure
 
@@ -257,7 +255,7 @@ New-ADOrganizationalUnit -Name "CanyonPeak-Disabled" -Path $base
 ```
 </details>
 
-📸 *Screenshot: the three OUs in the ADUC tree.*
+![Three OUs in the ADUC tree](screenshots/05-three-ous-in-the-aduc-tree.png)
 
 ### 10. Create a delegated service account
 
@@ -296,7 +294,7 @@ Get-ADUser svc-labautomation -Properties MemberOf | Select-Object -ExpandPropert
 ```
 </details>
 
-📸 *Screenshot: the Delegation of Control wizard's permissions page, and the account's Member Of tab showing only Domain Users.*
+![Permissions and tab showing only Domain Users](screenshots/06-permissions-and-tab-showing-only-domain-users.png)
 
 ### 11. Snapshot the VM
 
