@@ -7,6 +7,8 @@
 
 Provision a dedicated Windows Server 2022 VM, promote it to the first domain controller of a new forest, and lay down the OU structure and service account the rest of the series depends on. This is deliberately a **separate environment** from the home lab I already run day to day — Canyon Peak gets its own isolated forest so nothing here disturbs an environment I depend on.
 
+Steps are written for the **Windows GUI** — Server Manager, ADUC, DNS Manager — since that's where this work actually gets done day to day, and it's the muscle memory the Okta Certified Professional performance exam expects. Each step also carries the PowerShell equivalent in a collapsible block, because a runbook that only works one way isn't much of a runbook.
+
 ## A note on the domain name
 
 The AD domain is `corp.canyonpeaktech.com` — a subdomain of the public domain Canyon Peak owns — rather than something like `canyonpeak.local`. Microsoft has advised against `.local` for Active Directory for years: it's reserved for multicast DNS (mDNS/Bonjour), so it can collide with name resolution on any network running Apple devices or Linux hosts with Avahi, and no public CA will issue a certificate for it if you later need one. Delegating a subdomain of a domain you actually control is the current recommended pattern and handles split-brain DNS cleanly.
@@ -23,8 +25,8 @@ Staff still sign in as `first.last@canyonpeaktech.com` rather than the longer `@
 
 - VMware Workstation — VM on the **NAT** network (VMnet8), isolated from the physical LAN
 - Windows Server 2022 Standard, Desktop Experience
-- Active Directory Domain Services (AD DS)
-- DNS Server role (installed alongside AD DS)
+- Server Manager, Active Directory Users and Computers (ADUC), AD Domains and Trusts, DNS Manager
+- Active Directory Domain Services (AD DS) and the DNS Server role
 
 ### Why NAT rather than bridged
 
@@ -58,7 +60,7 @@ After the wizard finishes: **Edit virtual machine settings → CD/DVD → Use IS
 Power on and press a key when prompted to boot from the ISO.
 
 1. Language/keyboard → **Next** → **Install now**
-2. Edition: **Windows Server 2022 Standard (Desktop Experience)** — the plain "Standard" entry is Server Core, which has no GUI. Desktop Experience is much easier to work in and to screenshot for a lab.
+2. Edition: **Windows Server 2022 Standard (Desktop Experience)** — the plain "Standard" entry is Server Core, which has no GUI at all. Desktop Experience is what the rest of this lab assumes.
 3. Accept the license terms → **Custom: Install Windows only**
 4. Select the 60 GB disk → **Next**, then wait out the install and reboot
 5. Set the local Administrator password when prompted. Record it — after promotion this becomes the *domain* Administrator account.
@@ -71,7 +73,7 @@ Then install VMware Tools (**VM → Install VMware Tools**, run setup from the m
 
 VMware assigns a random subnet to VMnet8 per installation, so check yours rather than assuming.
 
-On the **host**: **Edit → Virtual Network Editor** (needs admin) → select **VMnet8 (NAT)**. Note the subnet address, then open **NAT Settings** to see the gateway IP.
+On the **host**: **Edit → Virtual Network Editor** (click *Change Settings* for admin rights) → select **VMnet8 (NAT)**. Note the subnet address, then open **NAT Settings** to see the gateway IP.
 
 Typical layout, with `x` being your subnet's third octet:
 
@@ -81,43 +83,94 @@ Typical layout, with `x` being your subnet's third octet:
 | `192.168.x.2` | NAT gateway — this is the VM's default gateway |
 | `192.168.x.128` – `.254` | VMware's DHCP pool |
 
-Anything from `.3` to `.127` is outside the DHCP pool and safe to use statically. This walkthrough uses **`.10`**. Substitute your actual subnet everywhere below.
+Anything from `.3` to `.127` is outside the DHCP pool and safe to use statically. This lab uses **`.10`**. Write your actual subnet down — you'll need it again in Lab 02 when pointing the Okta AD Agent at this machine.
+
+<details>
+<summary>PowerShell equivalent (run on the host)</summary>
+
+```powershell
+$p = ((Get-NetIPAddress -InterfaceAlias "*VMnet8*" -AddressFamily IPv4 |
+       Where-Object { $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress) -replace '\.\d+$',''
+"Subnet: $p.0/24   |   DC static: $p.10   |   Gateway: $p.2"
+```
+</details>
 
 ### 4. Set a static IP and hostname
 
 A domain controller needs a stable address — its own DNS records point at it, and clients that can't resolve it can't log in.
 
-In the guest, open PowerShell as Administrator:
+**Static IP.** In the guest: **Control Panel → Network and Sharing Center → Change adapter settings**. Right-click **Ethernet0 → Properties → Internet Protocol Version 4 (TCP/IPv4) → Properties**, then choose *Use the following IP address*:
+
+| Field | Value |
+|---|---|
+| IP address | `192.168.x.10` |
+| Subnet mask | `255.255.255.0` |
+| Default gateway | `192.168.x.2` |
+| Preferred DNS server | `192.168.x.10` — **its own address** |
+
+That last field is the one people get wrong. A domain controller must be authoritative for its own zone, so it points DNS at itself rather than at a router or a public resolver.
+
+**Hostname.** **Server Manager → Local Server → Computer name** → *Change* → set to `CANYONPEAK-DC01` → OK, then reboot when prompted.
+
+<details>
+<summary>PowerShell equivalent (run in the guest)</summary>
 
 ```powershell
-# Confirm the adapter name and current address (usually "Ethernet0" on VMware)
-Get-NetIPConfiguration
+Get-NetIPConfiguration    # confirm the adapter name, usually "Ethernet0"
 
-# Drop DHCP, then assign the static address (substitute your subnet)
 Set-NetIPInterface   -InterfaceAlias "Ethernet0" -Dhcp Disabled
 New-NetIPAddress     -InterfaceAlias "Ethernet0" -IPAddress 192.168.x.10 -PrefixLength 24 -DefaultGateway 192.168.x.2
-
-# Point DNS at itself - a DC must be authoritative for its own zone
 Set-DnsClientServerAddress -InterfaceAlias "Ethernet0" -ServerAddresses 192.168.x.10
-```
 
-Then rename the machine and reboot:
-
-```powershell
 Rename-Computer -NewName "CANYONPEAK-DC01" -Restart
 ```
+</details>
 
-📸 *Screenshot: `Get-NetIPConfiguration` showing the static address, gateway, and self-referencing DNS.*
+Name resolution will fail at this point — DNS now points at a machine that isn't running a DNS server yet. That's expected; it starts working in step 8. Test connectivity by IP for now (`ping 192.168.x.2`), not by name.
+
+📸 *Screenshot: the IPv4 properties dialog, or `Get-NetIPConfiguration`, showing the static address, gateway, and self-referencing DNS.*
 
 ### 5. Install the AD DS role
+
+**Server Manager → Manage → Add Roles and Features**.
+
+1. *Before you begin* → **Next**
+2. Installation type: **Role-based or feature-based installation** → **Next**
+3. Server selection: `CANYONPEAK-DC01` is already highlighted → **Next**
+4. Server roles: tick **Active Directory Domain Services**. A dialog offers the required management tools — click **Add Features**. → **Next**
+5. Features → **Next** → AD DS info page → **Next**
+6. **Install**
+
+This installs the role only. The machine is not a domain controller until you promote it in the next step.
+
+<details>
+<summary>PowerShell equivalent</summary>
 
 ```powershell
 Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
 ```
-
-Expect `Success : True` and `Exit Code : Success`. This installs the role but does **not** make the machine a domain controller yet.
+</details>
 
 ### 6. Promote to a new forest
+
+When the role install finishes, Server Manager shows a yellow warning flag in the top bar. Click it → **Promote this server to a domain controller**.
+
+1. **Deployment Configuration** → *Add a new forest* → Root domain name: `corp.canyonpeaktech.com`
+2. **Domain Controller Options**
+   - Forest and domain functional level: **Windows Server 2016** (the default, and fine here)
+   - Leave **DNS server** and **Global Catalog** ticked — this is the first DC in the forest, it needs both
+   - Set the **DSRM password**
+3. **DNS Options** — a warning about a delegation for the parent zone not being created. Expected and safe to ignore: there is no real `canyonpeaktech.com` parent zone to delegate from. → **Next**
+4. **Additional Options** — NetBIOS name auto-fills as `CANYONPEAK`. → **Next**
+5. **Paths**, **Review Options** → **Next**
+6. **Prerequisites Check** → warnings are normal, errors are not → **Install**
+
+The VM reboots itself when promotion completes. This takes several minutes.
+
+**About that DSRM password:** Directory Services Restore Mode is a break-glass credential for booting the DC into recovery when the domain itself is broken. Give it its own password, distinct from the Administrator account, and record it somewhere you'll still be able to reach if this machine is down.
+
+<details>
+<summary>PowerShell equivalent</summary>
 
 ```powershell
 Install-ADDSForest `
@@ -128,66 +181,105 @@ Install-ADDSForest `
     -Force
 ```
 
-Two deliberate choices here. `-InstallDns` adds and configures the DNS role as part of promotion, which is what you want for the first DC in a forest. And the DSRM password comes from `Read-Host` rather than being typed inline — that keeps it out of PowerShell history, out of any script file, and **out of your screenshots**. Directory Services Restore Mode is a separate break-glass credential used to boot the DC into recovery mode; give it its own password and store it somewhere you'll still have access to if the domain itself is broken.
+`Read-Host` rather than an inline password keeps it out of PowerShell history and out of any screenshot.
+</details>
 
-The VM reboots automatically once promotion completes. This step takes several minutes.
-
-📸 *Screenshot: the promotion completing, and the sign-in screen now showing `CANYONPEAK\Administrator`.*
+📸 *Screenshot: the promotion wizard's Deployment Configuration page, and the sign-in screen afterwards showing `CANYONPEAK\Administrator`.*
 
 ### 7. Validate the forest before building on it
 
 Don't move on until this is clean — every later lab assumes a healthy domain.
 
+**In the GUI:** Server Manager now lists **AD DS** and **DNS** in the left pane, both with green status. Open **Tools → Active Directory Users and Computers** and confirm `corp.canyonpeaktech.com` appears as the root with the default containers beneath it.
+
+**Then run `dcdiag`**, which has no GUI equivalent and is the real test:
+
 ```powershell
-Get-ADDomain  | Select-Object DNSRoot, NetBIOSName, DomainMode
-Get-ADForest  | Select-Object Name, ForestMode, GlobalCatalogs
-Get-Service ADWS, DNS, Netlogon, NTDS | Select-Object Name, Status
 dcdiag /q
+Get-ADDomain | Select-Object DNSRoot, NetBIOSName, DomainMode
+Get-Service ADWS, DNS, Netlogon, NTDS | Select-Object Name, Status
 ```
 
-`Get-ADDomain` should return `corp.canyonpeaktech.com` / `CANYONPEAK`, all four services should be **Running**, and `dcdiag /q` should print nothing at all — it only reports failures, so silence is a pass.
+`dcdiag /q` only reports failures, so **no output is a pass**. All four services should show Running.
 
-📸 *Screenshot: `Get-ADDomain` output and the four services running.*
+📸 *Screenshot: ADUC showing the new domain, and `dcdiag /q` returning clean.*
 
 ### 8. Fix DNS forwarding, then add the UPN suffix
 
-**Forwarders first.** After promotion the DC resolves its own domain, but external lookups may not work — and in Lab 02 the Okta AD Agent has to reach Okta over the internet. Catching this now avoids a confusing failure later:
+**Forwarders first.** The DC resolves its own domain now, but external lookups may not work — and in Lab 02 the Okta AD Agent has to reach Okta over the internet. Catching this now avoids a confusing failure later.
+
+**Server Manager → Tools → DNS** → right-click `CANYONPEAK-DC01` → **Properties → Forwarders tab → Edit** → add `1.1.1.1` and `8.8.8.8` → **OK**.
+
+Then confirm from a command prompt:
 
 ```powershell
-Get-DnsServerForwarder
-Set-DnsServerForwarder -IPAddress 1.1.1.1, 8.8.8.8
-Resolve-DnsName okta.com    # must succeed before starting Lab 02
+Resolve-DnsName okta.com     # must succeed before starting Lab 02
 ```
 
-**Then the alternative UPN suffix.** By default every account's UPN would be `first.last@corp.canyonpeaktech.com`, but staff email — and the Okta usernames created in Lab 01 — use the shorter `@canyonpeaktech.com`. Registering it at the forest level lets accounts use the clean form:
+**Then the alternative UPN suffix.** By default every account's UPN would be `first.last@corp.canyonpeaktech.com`, but staff email — and the Okta usernames created in Lab 01 — use the shorter `@canyonpeaktech.com`.
+
+**Server Manager → Tools → Active Directory Domains and Trusts** → right-click **Active Directory Domains and Trusts** at the very top of the left pane (not the domain itself) → **Properties → UPN Suffixes tab** → type `canyonpeaktech.com` → **Add** → **OK**.
+
+Once registered, `canyonpeaktech.com` appears in the UPN drop-down when you create users in ADUC. Skip this and AD logon names won't match the Okta usernames, so the account matching in Lab 02 will fail.
+
+<details>
+<summary>PowerShell equivalent</summary>
 
 ```powershell
+Set-DnsServerForwarder -IPAddress 1.1.1.1, 8.8.8.8
 Set-ADForest -Identity (Get-ADForest) -UPNSuffixes @{Add="canyonpeaktech.com"}
 Get-ADForest | Select-Object -ExpandProperty UPNSuffixes
 ```
+</details>
 
-GUI equivalent: Active Directory Domains and Trusts → right-click the forest root → Properties → UPN Suffixes → Add.
-
-Once registered, `canyonpeaktech.com` appears in the UPN drop-down in ADUC, and the Lab 06 joiner script sets it automatically. Skip this and AD logon names won't match the Okta usernames, so the account matching in Lab 02 will fail.
-
-📸 *Screenshot: `Resolve-DnsName okta.com` succeeding, and the UPN suffix listed.*
+📸 *Screenshot: the Forwarders tab, and the UPN Suffixes tab showing `canyonpeaktech.com`.*
 
 ### 9. Build the base OU structure
+
+**Server Manager → Tools → Active Directory Users and Computers.**
+
+Right-click the domain `corp.canyonpeaktech.com` → **New → Organizational Unit**. Create three, leaving *Protect container from accidental deletion* ticked:
+
+- `CanyonPeak-Users`
+- `CanyonPeak-Groups`
+- `CanyonPeak-Disabled`
+
+These are what Labs 02–06 expect. Scoping the Okta AD Agent to just these in Lab 02 means the sync never touches built-in containers.
+
+<details>
+<summary>PowerShell equivalent</summary>
 
 ```powershell
 $base = "DC=corp,DC=canyonpeaktech,DC=com"
 New-ADOrganizationalUnit -Name "CanyonPeak-Users"    -Path $base
 New-ADOrganizationalUnit -Name "CanyonPeak-Groups"   -Path $base
 New-ADOrganizationalUnit -Name "CanyonPeak-Disabled" -Path $base
-
-Get-ADOrganizationalUnit -Filter 'Name -like "CanyonPeak-*"' | Select-Object Name, DistinguishedName
 ```
+</details>
 
-Three OUs, matching what Labs 02–06 expect: users, groups, and a holding area for offboarded accounts. Scoping the Okta AD Agent to just these in Lab 02 means the sync never touches built-in containers.
+📸 *Screenshot: the three OUs in the ADUC tree.*
 
 ### 10. Create a delegated service account
 
 The Lab 06 automation scripts need rights to create, modify, disable, and move AD objects. Running them as Domain Admin would work and would also be exactly the habit an IAM role is supposed to break — so this account gets rights over the three lab OUs and nothing else.
+
+**Create the account.** In ADUC, right-click the domain → **New → User**:
+
+| Field | Value |
+|---|---|
+| Full name | `svc-labautomation` |
+| User logon name | `svc-labautomation` @ `corp.canyonpeaktech.com` |
+
+On the password page: untick *User must change password at next logon*, tick **Password never expires**. (A lab convenience — production would use a Group Managed Service Account instead.)
+
+**Delegate control.** For each of the three OUs, right-click it → **Delegate Control** → **Next** → **Add** → `svc-labautomation` → **Next** → *Create a custom task to delegate* → **Next** → *This folder, existing objects in this folder, and creation of new objects in this folder* → **Next** → tick **Full Control** → **Next** → **Finish**.
+
+Repeat for `CanyonPeak-Users`, `CanyonPeak-Groups`, and `CanyonPeak-Disabled`.
+
+**Confirm it isn't privileged.** Open the account's **Member Of** tab — it should list only *Domain Users*. If `Domain Admins` is there, the delegation exercise was pointless.
+
+<details>
+<summary>PowerShell equivalent</summary>
 
 ```powershell
 New-ADUser -Name "svc-labautomation" -SamAccountName "svc-labautomation" `
@@ -195,26 +287,16 @@ New-ADUser -Name "svc-labautomation" -SamAccountName "svc-labautomation" `
     -Path "DC=corp,DC=canyonpeaktech,DC=com" `
     -AccountPassword (Read-Host -AsSecureString "Service account password") `
     -PasswordNeverExpires $true -Enabled $true
-```
 
-Delegate control over each OU (`/I:T` applies to the OU and everything beneath it):
-
-```powershell
 foreach ($ou in "CanyonPeak-Users","CanyonPeak-Groups","CanyonPeak-Disabled") {
     dsacls "OU=$ou,DC=corp,DC=canyonpeaktech,DC=com" /I:T /G "CANYONPEAK\svc-labautomation:GA"
 }
-```
 
-Confirm it took, and confirm the account is *not* privileged:
-
-```powershell
-dsacls "OU=CanyonPeak-Users,DC=corp,DC=canyonpeaktech,DC=com" | Select-String "svc-labautomation"
 Get-ADUser svc-labautomation -Properties MemberOf | Select-Object -ExpandProperty MemberOf
 ```
+</details>
 
-That last command should return nothing — no Domain Admins, no privileged groups. `PasswordNeverExpires` is a lab convenience, not something to carry into production; a real deployment would use a Group Managed Service Account instead.
-
-📸 *Screenshot: the three OUs in ADUC, and the delegation showing on `CanyonPeak-Users`.*
+📸 *Screenshot: the Delegation of Control wizard's permissions page, and the account's Member Of tab showing only Domain Users.*
 
 ### 11. Snapshot the VM
 
@@ -226,13 +308,14 @@ If a later lab goes sideways, this is a two-minute recovery instead of rebuildin
 
 ## Verification
 
-- [ ] `Get-ADDomain` returns `corp.canyonpeaktech.com` / `CANYONPEAK`
+- [ ] Server Manager shows AD DS and DNS with green status
+- [ ] ADUC opens on `corp.canyonpeaktech.com`
 - [ ] `dcdiag /q` produces no output
 - [ ] AD DS, DNS, Netlogon, and ADWS are all Running
 - [ ] `Resolve-DnsName okta.com` resolves — the Okta AD Agent depends on this in Lab 02
-- [ ] `Get-ADForest | Select -ExpandProperty UPNSuffixes` lists `canyonpeaktech.com`
+- [ ] AD Domains and Trusts lists `canyonpeaktech.com` as a UPN suffix
 - [ ] `CanyonPeak-Users`, `CanyonPeak-Groups`, and `CanyonPeak-Disabled` exist
-- [ ] `svc-labautomation` has delegated rights on those three OUs and belongs to no privileged group
+- [ ] `svc-labautomation` has delegated rights on those three OUs and is a member of Domain Users only
 - [ ] Snapshot `post-promotion-baseline` exists
 
 ## Notes
