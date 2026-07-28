@@ -133,7 +133,7 @@ The `CC-90xx` cost centre range is deliberate — contractors bill differently f
 
 Alex Rivera, Priya Nair, Marcus Webb, and Jordan Lee are Canyon Peak's actual employees. They arrive from Active Directory in Lab 02 — don't create them here.
 
-📸 *Screenshot: Directory → People showing both contractors, and one profile with department, title, cost center, and client account populated.*
+![New Okta Native Users](screenshots/03-new-okta-native-users.png)
 
 ### 6. Create groups
 
@@ -169,22 +169,38 @@ Only two of these match anyone right now: Dana lands in Security Operations, The
 
 **Prove it works rather than assuming.** Edit Theo Marsh's profile, change `department` from `Client Services` to `Finance`, save, and watch him leave one group and join the other without you touching group membership. Then change it back.
 
-📸 *Screenshot: the four rules showing Active, and Theo Marsh's group membership changing after the attribute edit.*
+![Group Rules](screenshots/04-group-rules.png)
 
 ### 8. Baseline authentication policy
 
-**Security → Authentication Policies → Create Policy**, named `Standard Access Policy`, described as *Baseline access requirements for Canyon Peak staff*.
+**Security → Authentication Policies** → add a policy named `Standard Access Policy`, described as *Baseline access requirements for Canyon Peak*.
 
-Add two rules:
+Note the choice of policy type here. **App Sign-In** is what you want — it governs access to applications, and you can create as many as you need. The **Okta Account Management Policy** listed alongside it is a different animal: a single built-in, non-deletable policy governing self-service operations — authenticator enrollment and unenrollment, password recovery, and account unlock. It can't be assigned to apps at all. Worth knowing it exists, because tightening app sign-in while leaving account recovery satisfiable by an emailed link is a genuinely common gap.
 
-| Rule name | Access is | User must authenticate with |
-|---|---|---|
-| Password only | Allowed after successful authentication | Password |
-| Require MFA | Allowed after successful authentication | Password + Another factor |
+Every new policy ships with a **Catch-all Rule** you can't delete. It sits at the bottom, matches anything no earlier rule caught, and defines the floor.
 
-Leave it unassigned to any application for now. Lab 05 builds the real adaptive logic on top of this — network zones, step-up authentication, passwordless — and assigning it prematurely just means undoing it later.
+**Add one rule above it:**
 
-📸 *Screenshot: the Standard Access Policy with both rules.*
+| Field | Value |
+|---|---|
+| Rule name | `Contractors require MFA` |
+| IF User's group membership includes | `Canyon Peak Contractors` |
+| AND User's IP is | Any IP |
+| THEN Access is | Allowed after successful authentication |
+| AND User must authenticate with | Password + Another factor |
+| AND Possession factor constraints are | *leave unchecked* |
+
+Then confirm the **Catch-all Rule** is set to `Password` — that's everyone else.
+
+**On possession factor constraints:** these narrow *which* possession factors satisfy the rule. Ticking **phishing resistant** restricts it to FIDO2/WebAuthn, passkeys, smart cards, and FastPass in phishing-resistant mode — Okta Verify push and TOTP don't qualify. Since nobody has enrolled anything yet and step 10 sets contractors up with Okta Verify, requiring it here would make the rule unsatisfiable and lock them out. Lab 05 is where a stronger constraint genuinely belongs, on step-up access to the AWS Console.
+
+**Why one conditioned rule rather than two unconditioned ones.** Okta evaluates rules top-down and stops at the first match. A rule with no conditions matches every sign-in, so anything below it never executes — two rules named "Password only" and "Require MFA", in that order, with no conditions, would leave the second one permanently dead. Rule precedence is the single most common authentication policy mistake, in labs and in production, and it's a large share of why people lose marks on the exam's Security Enforcement domain.
+
+The result is a real two-tier policy: contractors need a second factor, everyone else gets password. That's consistent with the tighter session policy contractors get in step 9, and it means Lab 05 extends something that works rather than replacing something inert.
+
+**Leave the policy unassigned to any application.** It will show zero applications, which is correct — Lab 05 assigns apps once the adaptive rules exist.
+
+📸 *Screenshot: the policy showing the contractor rule sitting above the catch-all — the ordering is the point of the picture.*
 
 ### 9. Global session policy
 
@@ -224,7 +240,7 @@ This is the first time the tenant is exercised as a user rather than an admin, a
 - [ ] Six groups exist; Canyon Peak Contractors contains both; Canyon Peak Employees is empty and waiting for Lab 02
 - [ ] All four group rules show **Active**, with two dormant by design
 - [ ] Changing Theo's `department` moves him between groups automatically
-- [ ] Standard Access Policy exists with both rules
+- [ ] Standard Access Policy exists with the contractor rule ordered above the catch-all
 - [ ] Contractor session policy applies at 4h / 15m
 - [ ] Dana can sign in and reach the branded dashboard
 
