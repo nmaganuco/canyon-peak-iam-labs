@@ -59,14 +59,22 @@ In ADUC, create a user in the domain root:
 
 Record the password in your credentials file.
 
-**Delegate the permissions it actually needs.** Right-click `CanyonPeak-Users` → **Delegate Control** → add `svc-oktaagent` → *Create a custom task to delegate* → *This folder, existing objects, and creation of new objects* → then grant:
+**Delegate the permissions it actually needs.** The two OUs take different wizard paths, because the built-in task list only covers user objects.
+
+**On `CanyonPeak-Users`** — right-click → **Delegate Control** → **Next** → **Add** `svc-oktaagent` → **Next** → choose **Delegate the following common tasks**, and tick:
 
 - **Read all user information** — required for import
 - **Reset user passwords and force password change at next logon** — required for delegated authentication and later self-service password reset
 
-Repeat for `CanyonPeak-Groups`.
+**Next → Finish.**
+
+**On `CanyonPeak-Groups`** — the common task list offers only *Create, delete and manage groups* and *Modify the membership of a group*, both of which are far more than the agent needs. Take the other branch instead: right-click → **Delegate Control** → **Next** → **Add** `svc-oktaagent` → **Next** → **Create a custom task to delegate** → **Only the following objects in the folder** → tick **Group objects** → **Next** → under **General**, tick **Read** → **Next → Finish**.
+
+Read-only is enough because nothing writes groups back to AD. The group objects themselves get created by hand in Lab 03.
 
 That's deliberately narrower than Okta's full provisioning permission set. Creating and deleting AD accounts from Okta would additionally need write access to `sAMAccountName`, `userPrincipalName`, `userAccountControl` and others — but nothing in this series provisions *into* AD from Okta. Lab 06 writes to AD via PowerShell as `svc-labautomation` instead, so the agent never needs those rights.
+
+One gap worth knowing about: the common task grants *Reset Password* and write on `pwdLastSet`, but not write on `lockoutTime`. If you later want Okta to perform self-service account **unlock** as well as password reset, that needs adding through the custom-task path against user objects.
 
 <details>
 <summary>PowerShell equivalent</summary>
