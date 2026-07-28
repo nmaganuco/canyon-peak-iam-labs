@@ -90,7 +90,7 @@ New-ADUser -Name "svc-oktaagent" -SamAccountName "svc-oktaagent" `
 Delegation is clearer through the wizard than through `dsacls` here, because the reset-password control access right is awkward to express on the command line.
 </details>
 
-📸 *Screenshot: the Delegation of Control wizard showing the two permissions granted to `svc-oktaagent`.*
+![Delegation](screenshots/02-delegation.png)
 
 ### 2. Create the Canyon Peak employees in Active Directory
 
@@ -144,7 +144,7 @@ On the DC, run the installer:
 
 Back in Okta, the new directory appears under **Directory Integrations**. Open it and check the agent shows as connected.
 
-📸 *Screenshot: Directory Integrations showing the agent connected and healthy.*
+![Directory Intergration](screenshots/01-directory-intergration.png)
 
 ### 4. Scope the integration
 
@@ -166,7 +166,7 @@ When it completes, Okta lists the users it found. Tick all four, then **Confirm 
 
 Then open **Directory → People → Alex Rivera → Profile** and confirm it reads **sourced by Active Directory**. That phrase is the whole point of the lab — his profile is no longer editable in Okta, because AD owns it now.
 
-📸 *Screenshot: the import results, and a profile showing "sourced by Active Directory".*
+![Imported User](screenshots/03-imported-user.png)
 
 ### 6. Watch the Lab 01 group rules fire
 
@@ -218,9 +218,17 @@ It should report zero users and zero groups scanned. That's the point — you're
 
 From this point Okta stops storing a password for AD-sourced users and forwards credential checks to the domain controller. Employees sign in with their Windows password; contractors keep using Okta-held passwords, since they have no AD account.
 
-Click **Test Delegated Authentication**, supply Alex Rivera's AD credentials, and confirm it returns success.
+There's a **Test Delegated Authentication** button here. Use it if you like, but don't trust it as your verification — it can report a bare "failed" with no explanation and doesn't reliably leave anything in the System Log to diagnose.
 
-📸 *Screenshot: the delegated authentication test returning successful.*
+**Test it properly instead.** Open a private window, go to your org URL, and sign in as `alex.rivera@canyonpeaktech.com` with his **Active Directory** password.
+
+**Expect to be stopped at an Okta Verify enrollment screen rather than reaching the dashboard. That is the pass condition.** Getting that far means Okta took the password, handed it to the agent, the agent validated it against `corp.canyonpeaktech.com`, and AD accepted it — delegated authentication has already done its job by then. The second factor is the Okta Dashboard's own authentication policy demanding any 2 factor types, exactly as it did for the contractors in Lab 01, and it has nothing to do with what you're testing here.
+
+Enroll Okta Verify for Alex if you want the dashboard screenshot and a working employee account for later labs. Leave the other three unenrolled — they exist to make group rules and offboarding meaningful, not to sign in, and enrolling four people on one phone buys you nothing.
+
+**If it fails, open the System Log before re-reading any policy.** Filter on the user, or just look at the newest events. The log records the **username that was actually attempted**, which is the one thing no configuration screen can show you — a typo'd username and a genuinely rejected credential both surface as `VERIFICATION_ERROR`, and they look identical from the admin console.
+
+📸 *Screenshot: a successful sign-in reaching the Okta Verify enrollment prompt, and the corresponding System Log entry.*
 
 **Worth thinking about:** this is a real availability trade. Employee sign-in now depends on the domain controller being reachable and the agent being healthy. If the DC is down, employees can't authenticate to anything behind Okta. Contractors still can — their credentials never left the cloud. That asymmetry is a genuine argument for keeping a break-glass admin account Okta-native.
 
@@ -262,7 +270,7 @@ For a stronger version of the same test, change Marcus Webb's `department` in AD
 - [ ] Canyon Peak Employees contains the four staff
 - [ ] Employee session policy applies at 8h / 1h, evaluated after the contractor policy
 - [ ] An incremental import with no changes reports zero scanned
-- [ ] Delegated authentication test succeeds against an AD credential
+- [ ] An AD-sourced user signs in with their Windows password and reaches at least the MFA enrollment prompt
 - [ ] A new AD account signs in and is JIT-provisioned without an import
 - [ ] An AD attribute change reaches the Okta profile after an incremental import
 - [ ] `test.jit` deactivated
