@@ -1,6 +1,6 @@
 # Lab 01 — Tenant Setup & Configuration
 
-**Status:** Not started
+**Status:** Complete
 **Scenario:** Standing up the Canyon Peak Technologies Okta tenant and its initial identity foundation.
 
 ## Objective
@@ -84,7 +84,7 @@ Then sign out, load your org URL, and hard-refresh (`Ctrl+Shift+R`) — sign-in 
 
 The subdomain brand accepts logos, colours, and page backgrounds but not custom HTML. Full customisation — custom sign-in page code, branded error pages — requires a custom domain, which is one of the more concrete arguments for setting one up.
 
-📸 *Screenshot: the branded Canyon Peak sign-in page.*
+![Branded Sign in Page](screenshots/01-branded-sign-in-page.png)
 
 ### 4. Review the profile schema, then extend it
 
@@ -200,7 +200,7 @@ The result is a real two-tier policy: contractors need a second factor, everyone
 
 **Leave the policy unassigned to any application.** It will show zero applications, which is correct — Lab 05 assigns apps once the adaptive rules exist.
 
-📸 *Screenshot: the policy showing the contractor rule sitting above the catch-all — the ordering is the point of the picture.*
+![Authentication Policy](screenshots/05-authentication-policy.png)
 
 ### 9. Global session policy
 
@@ -220,15 +220,27 @@ Employees get their own, more permissive policy in Lab 02 once that population e
 
 **Security → Authenticators → Enrollment tab → Add a Policy**, named `Canyon Peak Contractor Enrollment`, assigned to **Canyon Peak Contractors**.
 
-For now, allow enrollment in Okta Verify and leave Password required. Lab 05 tightens this — disabling email as a fallback factor and making Okta Verify mandatory — once adaptive policy is in place to support it.
+Set **Password: Required** and **Okta Verify: Optional**. Lab 05 tightens this — disabling email as a fallback factor and making Okta Verify mandatory — once adaptive policy is in place to support it.
+
+**Expect Dana to be forced into Okta Verify enrollment anyway at step 11, with no option to skip.** That isn't a misconfiguration, and the reason is worth understanding because it spans four separate policy screens.
+
+Enrollment policy governs what a user is *allowed* to have. Authentication policy governs what they must *prove*. Those are different questions, and the second one wins. Okta's own definition on the Authenticators page says as much: *"Optional: Users may enroll anytime they choose, or when prompted if enrollment is required by an authentication policy or password policy."*
+
+The policy doing the compelling is the one Okta ships on the Okta Dashboard app itself — **Security → Authentication Policies → Okta Dashboard** — whose catch-all rule reads *Access allowed with any 2 factor types*, and the only additional factor type this org offers is Okta Verify. Dana has a password and nothing else, so the dashboard is unreachable until she enrolls.
+
+Your own `Standard Access Policy` from step 8 would demand the same thing by design, since contractors carry MFA. Okta's default and your policy agree, which makes enrolling her the correct outcome rather than a workaround.
+
+Resist loosening the Okta Dashboard policy to make this step quicker. Requiring two factors to reach the dashboard is a sensible default, and weakening a security control for lab convenience is hard to defend afterwards.
+
+Tracing this — enrollment policy says optional, password policy is email-only recovery, global session policy doesn't require MFA, and the app's own authentication policy turns out to be the culprit — is the exact shape of the exam's troubleshooting domain.
 
 ### 11. Verify as an end user
 
-Open a private/incognito window, go to your org URL, and sign in as Dana Whitfield with her temporary password. You should be forced to change the password, then land on the branded end-user dashboard.
+Open a private/incognito window, go to your org URL, and sign in as Dana Whitfield with her temporary password. She'll be made to change it, then enroll Okta Verify — see step 10 for why that's compelled rather than offered — and then land on the branded end-user dashboard.
+
+Okta Verify supports multiple accounts on one device, so Dana can sit alongside your own admin enrollment without conflict.
 
 This is the first time the tenant is exercised as a user rather than an admin, and it's the check that catches policy mistakes that look fine from the admin console. Confirm the session policy is actually applying to her — **Directory → People → Dana Whitfield → Applications** won't show it, but her active session under the admin console's session view will reflect the four-hour lifetime.
-
-📸 *Screenshot: the branded end-user dashboard, signed in as Dana Whitfield.*
 
 ---
 
@@ -244,21 +256,17 @@ This is the first time the tenant is exercised as a user rather than an admin, a
 - [ ] Contractor session policy applies at 4h / 15m
 - [ ] Dana can sign in and reach the branded dashboard
 
-## Before you commit screenshots
-
-Your org URL (`dev-XXXXXXXX.okta.com`) is visible in the browser bar of nearly every screenshot in this lab. It isn't a secret — it's not usable without credentials — but it is a live tenant you control, and blurring it costs nothing. Decide once and be consistent.
-
-Nothing else here is sensitive: the staff are fictional, and the temporary passwords should never appear on screen if you set them in the form rather than displaying them afterward.
-
-**This is also the lab to test Scribe.** It's entirely browser-based, which is where Scribe works best. Export a Scribe to Markdown and check whether the `![...]()` references point at local image files or at Scribe-hosted URLs. If they're hosted URLs, don't commit them — the evidence wouldn't actually live in this repo, and it would break the day the Scribe is deleted.
-
 ## Notes
 
-_(fill in as completed — Okta UI quirks, anything that didn't match the plan)_
+**The one that took real digging:** Dana was forced to enroll Okta Verify at first sign-in with no option to skip, despite the enrollment policy having it set to Optional. I worked through four policy screens before finding it. The enrollment policy was correct — Password required, Okta Verify optional, scoped to Canyon Peak Contractors. The password policy was email-only recovery with no additional verification. The global session policy had MFA set to Not Required. The culprit was the authentication policy Okta ships on the **Okta Dashboard app itself**, whose catch-all rule requires *any 2 factor types* — and the only additional factor type in this org is Okta Verify. So the dashboard was unreachable until she enrolled.
+
+The distinction that explains it: enrollment policy governs what a user is *allowed* to have, authentication policy governs what they must *prove*. The second wins. Okta's own wording on the Authenticators page says optional means users may enroll when they choose "or when prompted if enrollment is required by an authentication policy or password policy" — which is exactly what happened.
 
 ## Key takeaways
 
-_(fill in once complete. Worth thinking about: why reading the base schema before extending it matters, and what a directory looks like after a few years of people not doing that; which identities genuinely belong in an external directory versus natively in Okta, and how you'd defend that split; why contractors warrant a tighter session policy than employees; why attribute-driven group membership beats manual assignment, and where it stops being the right tool — "is a contractor" isn't an attribute; and how this configuration would be managed as code, via Okta's API or the Terraform provider, in an org with more than a handful of users.)_
+Deciding which identities are directory-sourced and which are Okta-native is a design decision worth making deliberately rather than by default. Canyon Peak's employees belong in Active Directory because that's where their employment lifecycle is managed. The contractors don't — they were never in the corporate directory and creating AD accounts for them would mean maintaining identities for people outside the organization. Real tenants carry both, plus break-glass admins deliberately kept independent of on-prem infrastructure so they still work when it's down.
+
+Differentiating session policy by population is one of the more practical uses of the global session policy. Contractors get four hours and a fifteen-minute idle timeout because they're third parties working on client systems from equipment Canyon Peak doesn't manage. Employees will get something more permissive in Lab 02. The number matters less than being able to explain why it's that number.
 
 ---
 
