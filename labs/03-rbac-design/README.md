@@ -1,6 +1,6 @@
 # Lab 03 — RBAC Design & Implementation
 
-**Status:** Not started
+**Status:** Complete
 **Scenario:** Building a least-privilege access model on top of the Lab 02 integration, onboarding two hires into it, catching an out-of-band access grant, and running a full AD-driven offboarding.
 
 ## Objective
@@ -59,7 +59,7 @@ Add-ADGroupMember -Identity "Security Analysts"      -Members priya.nair
 ```
 </details>
 
-📸 *Screenshot: the two role groups in `CanyonPeak-Groups`, one open showing its members.*
+![ADUC Role Groups](screenshots/01-aduc-role-groups.png)
 
 ### 2. Onboard two hires into the model
 
@@ -86,7 +86,7 @@ Now check **Directory → Groups**, because one import just exercised every mode
 
 That last one is friction, and it's worth feeling: the manual model means every joiner needs a human to remember this step, which is exactly why it doesn't scale past a small org and why Lab 06 automates the whole joiner flow.
 
-📸 *Screenshot: the Groups list showing AD-sourced role groups alongside Okta-native ones, and one role group open showing membership is not editable in Okta.*
+![AD Sourced Groups](screenshots/02-ad-sourced-groups.png)
 
 ### 4. Add a placeholder app as the sprawl target
 
@@ -108,8 +108,6 @@ Every app grant is there — the group-driven ones for Alex and Elena, and Jorda
 
 Remediate: **Assignments → find Jordan → X → confirm.** The app is back to being reachable only through the role group.
 
-📸 *Screenshot: the System Log event for the direct assignment, with the query visible.*
-
 ### 6. Offboard Derek — entirely from AD
 
 Derek's pre-employment background check came back with a problem, and Canyon Peak's clients require clean checks for anyone touching their systems. He's out, effective immediately — three weeks after joining. Short-tenure exits like this are routine, and they're the sharpest test of an offboarding pipeline because nobody has muscle memory for this specific person yet.
@@ -126,7 +124,7 @@ Two independent mechanisms just fired, and it's worth being able to name both. T
 
 Note what deactivation is *not*: deletion. His account, his System Log history, and the audit trail of everything he touched all remain. Deactivated users also don't count against the 10-user cap — the slot comes back.
 
-📸 *Screenshot: Derek deactivated in Okta with no group memberships, next to his disabled account sitting in `CanyonPeak-Disabled` in ADUC.*
+![Deactivated](screenshots/03-deactivated.png)
 
 ---
 
@@ -143,11 +141,11 @@ Note what deactivation is *not*: deletion. His account, his System Log history, 
 
 ## Notes
 
-_(fill in as completed — group scope/type choices, import surprises, System Log query syntax quirks)_
+The offboarding actually fires two independent mechanisms, and it's worth knowing you have both: the disabled flag syncs as deactivation, and the OU move takes the account out of the agent's import scope entirely — which only works because Lab 02 deliberately left `canyonpeak-disabled` unscoped. Either alone would have cut his access; together, one covers for the other being forgotten.
 
 ## Key takeaways
 
-_(fill in once complete. Worth thinking about: which membership model fits which kind of group, and what goes wrong when you pick badly; why the System Log is the tool for finding access sprawl and what you'd schedule around that query in production; why the offboarding needed two mechanisms and what each protects against; and what "the account is deactivated, not deleted" preserves that a deletion would destroy.)_
+The tenant now runs three membership models side by side, and each is the right tool for exactly one kind of group. Population groups (Employees, Contractors) are manual because "is an employee" is a fact about a contract, not derivable from any attribute. Department groups are rule-driven because they *are* derivable, so maintaining them by hand just means drift. Role groups live in AD because role assignment is an access decision, and access decisions belong in the source-of-truth directory where the JML process already operates. Picking the wrong model is how orgs end up with a rule fighting a manual override, or a "role" group nobody remembers the criteria for.
 
 ---
 
