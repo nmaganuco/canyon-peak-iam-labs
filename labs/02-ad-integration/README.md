@@ -1,6 +1,6 @@
 # Lab 02 — Active Directory Integration
 
-**Status:** Not started
+**Status:** Complete
 **Scenario:** Connecting Canyon Peak's `corp.canyonpeaktech.com` domain to the Okta tenant, and bringing the employee population in from the directory that owns it.
 
 ## Objective
@@ -144,7 +144,7 @@ On the DC, run the installer:
 
 Back in Okta, the new directory appears under **Directory Integrations**. Open it and check the agent shows as connected.
 
-![Directory Intergration](screenshots/01-directory-intergration.png)
+![Directory Integration — agent connected and healthy](screenshots/01-directory-integration.png)
 
 ### 4. Scope the integration
 
@@ -184,8 +184,6 @@ This is the step worth slowing down for.
 The IT Operations and Finance rules were dormant in Lab 01 with nobody to catch. Security Operations and Client Services now hold one contractor and one employee each — identities from two different sources, assigned by the same rule, with no configuration added between then and now.
 
 That's what attribute-driven access buys you. The rule expresses intent — *people in Finance get the Finance group* — and stays correct as the population changes underneath it. A manually maintained membership list would have needed four edits.
-
-📸 *Screenshot: a department group containing both a contractor and an AD-sourced employee.*
 
 ### 7. Populate the employee group and give it a session policy
 
@@ -228,8 +226,6 @@ Enroll Okta Verify for Alex if you want the dashboard screenshot and a working e
 
 **If it fails, open the System Log before re-reading any policy.** Filter on the user, or just look at the newest events. The log records the **username that was actually attempted**, which is the one thing no configuration screen can show you — a typo'd username and a genuinely rejected credential both surface as `VERIFICATION_ERROR`, and they look identical from the admin console.
 
-📸 *Screenshot: a successful sign-in reaching the Okta Verify enrollment prompt, and the corresponding System Log entry.*
-
 **Worth thinking about:** this is a real availability trade. Employee sign-in now depends on the domain controller being reachable and the agent being healthy. If the DC is down, employees can't authenticate to anything behind Okta. Contractors still can — their credentials never left the cloud. That asymmetry is a genuine argument for keeping a break-glass admin account Okta-native.
 
 ### 10. Just-in-Time provisioning
@@ -242,7 +238,7 @@ Then check **Directory → People**. The account exists, created at the moment o
 
 This is what makes AD the genuine source of truth. A new hire created in AD on Monday morning can reach Okta immediately, rather than waiting for the next scheduled import.
 
-📸 *Screenshot: the JIT-provisioned account in Directory → People, created without an import.*
+![Jit](screenshots/04-jit.png)
 
 **Deactivate `test.jit` when you're done** — it's consuming one of your ten user slots.
 
@@ -255,8 +251,6 @@ In ADUC, open **Jordan Lee → Properties → Organization**, change **Job title
 Back in Okta, run an **Incremental Import**. Unlike step 8 it should report one user scanned. Then check **Directory → People → Jordan Lee → Profile** and confirm the title updated.
 
 For a stronger version of the same test, change Marcus Webb's `department` in AD from `Client Services` to `Finance`, import, and watch the Lab 01 group rules move him between groups — a change made in Active Directory driving group membership in Okta with nothing in between. Change it back afterwards.
-
-📸 *Screenshot: an AD attribute change reflected on the Okta profile after an incremental import.*
 
 ---
 
@@ -283,11 +277,11 @@ Also avoid capturing the `svc-oktaagent` password during the installer's credent
 
 ## Notes
 
-_(fill in as completed — agent install issues, certificate or proxy problems, attribute mapping surprises)_
+Related: the **Test Delegated Authentication** button reports a bare failure with no detail and doesn't appear to log anything useful. A real sign-in is the better test, because it produces System Log events you can actually read.
 
 ## Key takeaways
 
-_(fill in once complete. Worth thinking about: what "sourced by Active Directory" actually changes about who can edit a profile; why the agent gets its own scoped service account rather than reusing one or running as Domain Admin; what delegated authentication does to your availability model, and which accounts should deliberately stay independent of it; the difference between JIT provisioning and scheduled import, and when each matters; and why group rules kept working across a change of identity source without being touched.)_
+JIT provisioning and scheduled import solve different problems. Import is a reconciliation pass — it catches everything, on a schedule you control. JIT is a latency fix for the joiner case, so a new hire created in AD on Monday morning can reach Okta immediately rather than waiting for the next cycle. You want both, and knowing which one explains an unexpected account appearing is useful when something looks wrong.
 
 ---
 
