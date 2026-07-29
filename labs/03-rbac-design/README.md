@@ -1,59 +1,153 @@
 # Lab 03 — RBAC Design & Implementation
 
 **Status:** Not started
-**Scenario:** Building a least-privilege access model on top of the AD/Okta integration from Lab 02, and proving it holds up under a real offboarding.
+**Scenario:** Building a least-privilege access model on top of the Lab 02 integration, onboarding two hires into it, catching an out-of-band access grant, and running a full AD-driven offboarding.
 
 ## Objective
 
-Move beyond department groups (which are really just org-chart buckets) to role-based groups that actually gate access. Add two new role groups tied to functions Canyon Peak cares about — Systems Administrator and Security Analyst — assign users to exactly one role, verify the sync pipeline, then deliberately break and fix an access-sprawl scenario before running a full leaver offboarding.
+Department groups describe the org chart; they don't describe access. This lab adds **role groups** — Systems Administrators and Security Analysts, the two job families access decisions actually hang off — as Active Directory security groups that sync into Okta. Then it stress-tests the model twice: once by manufacturing the kind of ad hoc app assignment that erodes RBAC in real environments and tracing it through the System Log, and once by offboarding an employee entirely from the AD side.
+
+These are also the first AD groups to reach Okta. Lab 02 deliberately imported users only, so after this lab the tenant demonstrates **three different membership models side by side**:
+
+| Group | Membership managed by | Why |
+|---|---|---|
+| Canyon Peak Contractors / Employees | Manual assignment in Okta | "Is an employee" is a fact about the employment relationship, not an attribute |
+| IT Operations, Security Operations, Client Services, Finance | Okta group rules on `department` | Derivable from the profile, so it should never be maintained by hand |
+| Systems Administrators, Security Analysts | AD security group membership, synced | Role assignment is an access decision made in the source-of-truth directory |
+
+Knowing which model fits which kind of group — and being able to say why — is worth more than any single one of them.
 
 ## Prerequisites
 
-- Labs 01–02 complete
-- AD integration healthy, all four staff synced and active in Okta
-- A SCIM-capable test app (Okta's SCIM 2.0 Test App works fine) added to the tenant for the access sprawl exercise
+- Labs 00–02 complete: agent healthy, four employees AD-sourced, delegated auth working
+- The Lab 02 OU scoping in place (`canyonpeak-users` and `canyonpeak-groups` only — the leaver exercise depends on `canyonpeak-disabled` being *excluded*)
+
+### Watch the user budget
+
+Two hires arrive in this lab and one leaves: 7 active users → 9 → 8. Still under the 10-user cap, but this is the high-water mark until Lab 06.
 
 ## Environment & technologies
 
-- Active Directory Users and Computers
-- Okta Universal Directory, System Log
-- Okta AD Agent (already installed from Lab 02)
+- Active Directory Users and Computers (ADUC)
+- Okta Admin Console — Directory Integrations, Groups, System Log
+- Okta System Log query syntax (`eventType eq "..."`)
+
+---
 
 ## Steps
 
-### 1. Create role groups in AD
+### 1. Create the role groups in AD
 
-In `CanyonPeak-Groups`, create two new security groups: **Systems Administrators** and **Security Analysts**. These map directly to the two job families I'm actually targeting in my job search, which is part of why this lab matters beyond the exam.
+**ADUC → `CanyonPeak-Groups` → right-click → New → Group**, twice:
 
-### 2. Onboard two new role-based hires
+| Group name | Scope | Type |
+|---|---|---|
+| Systems Administrators | Global | Security |
+| Security Analysts | Global | Security |
 
-Create two new AD users in `CanyonPeak-Users` — pick your own names or reuse the Lab 01 style — and assign one to Systems Administrators and one to Security Analysts. Add both to the Canyon Peak Employees group as well, same as every other staff member.
+Add the existing employees to their roles: open each group → **Members tab → Add** — **Alex Rivera** into Systems Administrators, **Priya Nair** into Security Analysts. Marcus and Jordan hold no role group; not everyone does, and that's the point — role membership should mean something.
 
-### 3. Sync and verify
+<details>
+<summary>PowerShell equivalent</summary>
 
-Run a full import in Okta, confirm the new assignments, and check that both new hires appear in Canyon Peak Employees and in their respective role group — this time as AD-linked groups from the start, not native Okta groups that need cleanup later.
+```powershell
+$ou = "OU=CanyonPeak-Groups,DC=corp,DC=canyonpeaktech,DC=com"
+New-ADGroup -Name "Systems Administrators" -GroupScope Global -GroupCategory Security -Path $ou
+New-ADGroup -Name "Security Analysts"      -GroupScope Global -GroupCategory Security -Path $ou
+Add-ADGroupMember -Identity "Systems Administrators" -Members alex.rivera
+Add-ADGroupMember -Identity "Security Analysts"      -Members priya.nair
+```
+</details>
 
-### 4. Manufacture and remediate access sprawl
+📸 *Screenshot: the two role groups in `CanyonPeak-Groups`, one open showing its members.*
 
-Directly assign one existing user to the SCIM test app from the Okta Admin Console (bypassing group-based assignment entirely) — this simulates the kind of ad hoc access grant that erodes an RBAC model over time. Then go find it: filter the Okta System Log for `application.user_membership.add` events and locate the direct assignment. Remove it and confirm the app access model is clean again.
+### 2. Onboard two hires into the model
 
-### 5. Full leaver offboarding
+Canyon Peak is growing. **ADUC → `CanyonPeak-Users` → New → User**, twice:
 
-Pick one of the four original Lab 01 staff to leave the company. In AD: disable the account, move it to a `CanyonPeak-Disabled` OU, and remove them from every group. Run a sync in Okta and confirm the account moves to Deactivated status and drops out of every group — without touching anything in the Okta console directly. This is the point of the whole hybrid model: AD stays the single source of truth for lifecycle state.
+| First | Last | User logon name | UPN suffix | Department | Job title | Role group |
+|---|---|---|---|---|---|---|
+| Elena | Vasquez | `elena.vasquez` | `@canyonpeaktech.com` | IT Operations | Systems Administrator | Systems Administrators |
+| Derek | Boone | `derek.boone` | `@canyonpeaktech.com` | Security Operations | Security Analyst | Security Analysts |
+
+Same rules as Lab 02: the **short UPN suffix** from the drop-down, and `department` + title on the **Organization** tab — the department drives the Okta group rules, so set it before the import, not after.
+
+Then add each to their role group in AD.
+
+### 3. Import and watch all three membership models fire at once
+
+**Directory → Directory Integrations →** your directory **→ Import tab → Import Now → Full Import** (full, not incremental — new *groups* are involved, and this guarantees everything is picked up in one pass). Confirm and auto-activate the two new users.
+
+Now check **Directory → Groups**, because one import just exercised every model in the table above:
+
+- **Systems Administrators** and **Security Analysts** appear for the first time — with the Active Directory icon. Open one: Elena is in it, and there's no way to edit membership from Okta. It's managed in AD, and the console says so.
+- **IT Operations** gained Elena and **Security Operations** gained Derek — the Lab 01 group rules fired on their `department` values, same as they did for the Lab 02 staff.
+- **Canyon Peak Employees** did *not* gain anyone. It's manual. Add Elena and Derek yourself: **Canyon Peak Employees → People → Assign People.**
+
+That last one is friction, and it's worth feeling: the manual model means every joiner needs a human to remember this step, which is exactly why it doesn't scale past a small org and why Lab 06 automates the whole joiner flow.
+
+📸 *Screenshot: the Groups list showing AD-sourced role groups alongside Okta-native ones, and one role group open showing membership is not editable in Okta.*
+
+### 4. Add a placeholder app as the sprawl target
+
+The next step needs an application to mis-assign. **Applications → Applications → Browse App Catalog**, search for **SCIM 2.0 Test App (Header Auth)**, and add it with defaults — no provisioning config, no credentials. It exists purely as an assignment target; Lab 04 builds the real app portfolio.
+
+Assign it properly first, the way the RBAC model says to: **Assignments → Assign to Groups → Systems Administrators.** Alex and Elena now have it, through their role. Nobody else does.
+
+### 5. Manufacture the sprawl, then catch it
+
+Now be the well-meaning admin who breaks the model. **Assignments → Assign → Assign to People → Jordan Lee.** Jordan is Finance — no role group, no business reason to hold this app. Ticket says grant it, someone grants it, ticket closes. That's how sprawl happens: one direct assignment at a time, each individually defensible.
+
+Then catch it the way you would in an environment you'd inherited. **Reports → System Log**, and search:
+
+```
+eventType eq "application.user_membership.add"
+```
+
+Every app grant is there — the group-driven ones for Alex and Elena, and Jordan's direct one. Open Jordan's event and read the detail: the target chain shows the app and the user but **no group in the path**, which is the fingerprint of a direct assignment. On the app's own Assignments tab, the same distinction shows as the assignment type.
+
+Remediate: **Assignments → find Jordan → X → confirm.** The app is back to being reachable only through the role group.
+
+📸 *Screenshot: the System Log event for the direct assignment, with the query visible.*
+
+### 6. Offboard Derek — entirely from AD
+
+Derek's pre-employment background check came back with a problem, and Canyon Peak's clients require clean checks for anyone touching their systems. He's out, effective immediately — three weeks after joining. Short-tenure exits like this are routine, and they're the sharpest test of an offboarding pipeline because nobody has muscle memory for this specific person yet.
+
+Everything happens in ADUC. Okta doesn't get touched:
+
+1. Right-click **Derek Boone → Disable Account**
+2. Open his **Member Of** tab → remove **Security Analysts** and everything else except Domain Users
+3. Right-click → **Move** → into `CanyonPeak-Disabled`
+
+Run an **Incremental Import** in Okta. Then check **Directory → People**: Derek is **Deactivated**, holds no groups, and has no app access — driven entirely by directory-side changes.
+
+Two independent mechanisms just fired, and it's worth being able to name both. The **disabled flag** syncs as deactivation — that alone kills his access. And the **OU move** took him out of the agent's import scope entirely, because Lab 02 deliberately left `canyonpeak-disabled` unscoped — so Okta stops seeing him at all on future imports. Belt and suspenders, and the belt works even if someone forgets the suspenders.
+
+Note what deactivation is *not*: deletion. His account, his System Log history, and the audit trail of everything he touched all remain. Deactivated users also don't count against the 10-user cap — the slot comes back.
+
+📸 *Screenshot: Derek deactivated in Okta with no group memberships, next to his disabled account sitting in `CanyonPeak-Disabled` in ADUC.*
+
+---
 
 ## Verification
 
-- Systems Administrators and Security Analysts groups exist in both AD and Okta with correct membership
-- The manufactured direct app assignment is traceable in the System Log and has been removed
-- The offboarded user shows Deactivated in Okta and has zero group memberships, driven entirely by the AD-side changes
+- [ ] Systems Administrators and Security Analysts exist in AD and in Okta, AD-sourced, with membership uneditable in Okta
+- [ ] Elena and Derek imported with correct departments; group rules placed them automatically
+- [ ] Elena and Derek manually added to Canyon Peak Employees
+- [ ] SCIM test app assigned to Systems Administrators only; Alex and Elena hold it via the group
+- [ ] Jordan's direct assignment found via `application.user_membership.add` in the System Log, then removed
+- [ ] Derek shows Deactivated in Okta with zero groups, after AD-only changes
+- [ ] Derek's account sits disabled in `CanyonPeak-Disabled`
+- [ ] Active user count is 8 of 10
 
 ## Notes
 
-_(fill in as completed)_
+_(fill in as completed — group scope/type choices, import surprises, System Log query syntax quirks)_
 
 ## Key takeaways
 
-_(fill in once complete — this is a good lab to reflect on how RBAC drift happens in real environments and what catches it)_
+_(fill in once complete. Worth thinking about: which membership model fits which kind of group, and what goes wrong when you pick badly; why the System Log is the tool for finding access sprawl and what you'd schedule around that query in production; why the offboarding needed two mechanisms and what each protects against; and what "the account is deactivated, not deleted" preserves that a deletion would destroy.)_
 
 ---
 
