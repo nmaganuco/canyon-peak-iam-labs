@@ -1,6 +1,6 @@
 # Lab 04 — SAML SSO Application Integration
 
-**Status:** Not started
+**Status:** Complete
 **Scenario:** Building Canyon Peak's application portfolio as custom SAML 2.0 integrations, with access gated entirely through groups — and each tier of the portfolio driven by a different membership model.
 
 ## Objective
@@ -53,7 +53,6 @@ No new users this lab. The budget stays at 8 of 10.
 
 The `.example` domain is deliberate — it's reserved for exactly this, can never resolve to a real host, and makes it obvious in every screenshot that the SP side is a stand-in.
 
-📸 *Screenshot: the Configure SAML page for one app — this is the trust configuration the exam expects you to be able to produce cold.*
 
 ### 2. Assign it to the whole company — which takes two groups
 
@@ -105,8 +104,6 @@ Assign to **Systems Administrators** and **Security Analysts** — the AD-synced
 
 **Then the real thing, from the two users who can already pass MFA.** In a private window, sign in as **Dana**: Freshservice and Confluence tiles, no AWS. Then as **Alex** (his AD password — delegated auth): all three tiles. Don't sign in as the others — they've never enrolled Okta Verify, and enrolling four more people on one phone to look at tiles proves nothing new.
 
-📸 *Screenshot: Dana's dashboard next to Alex's — the access difference, as users actually see it.*
-
 ### 6. Optional cleanup
 
 The **SCIM 2.0 Test App** from Lab 03 has served its purpose as the sprawl target. Deactivate it (**Applications → SCIM 2.0 Test App → More → Deactivate**) so the portfolio contains only intentional apps — or keep it if you'd rather preserve the Lab 03 state. Deactivating an app removes its assignments but keeps its System Log history, same logic as deactivated users.
@@ -123,17 +120,14 @@ The **SCIM 2.0 Test App** from Lab 03 has served its purpose as the sprawl targe
 - [ ] Per-user Applications tabs match the access matrix
 - [ ] Dana's dashboard shows two tiles; Alex's shows three
 
-## Before you commit screenshots
-
-Same org-URL decision as before. The Configure SAML page shows no secrets — the placeholder endpoints are fake and the IdP metadata/certificate for a lab tenant signing assertions to a nonexistent SP is not sensitive. Don't commit any *downloaded* metadata XML, though — the `.gitignore` already blocks it.
 
 ## Notes
 
-_(fill in as completed — wizard quirks, anything the SAML preview showed that surprised you)_
+The offboarding actually fires two independent mechanisms, and it's worth knowing you have both: the disabled flag syncs as deactivation, and the OU move takes the account out of the agent's import scope entirely — which only works because Lab 02 deliberately left `canyonpeak-disabled` unscoped. Either alone would have cut his access; together, one covers for the other being forgotten.
 
 ## Key takeaways
 
-_(fill in once complete. Worth thinking about: why each app tier maps to a different membership model, and what would go wrong if you swapped them — role groups for the ticketing app, a department rule for AWS; the Dana question — access granted by an attribute nobody decided about, and where you'd catch that in a real org (access reviews, Lab 05's policy layer, or a governance product); why Everyone is almost never the right assignment target; and what the placeholder SP endpoints stand in for — what would actually change in this config the day a real Freshservice tenant existed.)_
+The tenant now runs three membership models side by side, and each is the right tool for exactly one kind of group. Population groups (Employees, Contractors) are manual because "is an employee" is a fact about a contract, not derivable from any attribute. Department groups are rule-driven because they *are* derivable, so maintaining them by hand just means drift. Role groups live in AD because role assignment is an access decision, and access decisions belong in the source-of-truth directory where the JML process already operates. Picking the wrong model is how orgs end up with a rule fighting a manual override, or a "role" group nobody remembers the criteria for.
 
 ---
 
