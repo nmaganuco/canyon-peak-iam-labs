@@ -87,7 +87,7 @@ Repeat again:
 
 Assign to **Systems Administrators** and **Security Analysts** — the AD-synced role groups. Three people hold this app: Alex, Elena, Priya. Nobody gets it from an org-chart attribute; membership is an access decision made in ADUC, synced in, and revocable the same way. This is the most sensitive app in the portfolio, and in Lab 05 it gets step-up authentication on top.
 
-📸 *Screenshot: the AWS app's Assignments tab showing the two role groups and the three users holding access through them.*
+![AWS Application](screenshots/01-aws-application.png)
 
 ### 5. Verify from both sides
 
