@@ -41,7 +41,7 @@ Full build steps for the VM and domain are in [Lab 00](labs/00-domain-controller
 | 03 | [RBAC Design & Implementation](labs/03-rbac-design) | Role-based AD groups, access sprawl detection via System Log, leaver access revocation | Account Management (26%) + Troubleshooting (12%) |
 | 04 | [SAML SSO Application Integration](labs/04-saml-sso) | Custom SAML app integrations, group-based access, multi-app access matrix | Application Setup with OIN (10%) |
 | 05 | [MFA & Adaptive Authentication](labs/05-mfa-adaptive-auth) | Passwordless sign-in, network zones, risk-based policy, step-up auth, enrollment policy | Security Enforcement (38% — the big one) |
-| 06 | [JML Lifecycle Automation](labs/06-jml-automation) | PowerShell-driven joiner/mover/leaver scripts against AD, synced to Okta | Attribute Mapping & Offboarding (8%) |
+| 06 | [JML Lifecycle Management](labs/06-jml-automation) | Full joiner/mover/leaver cycle plus a batch of events, processed in AD and propagated to Okta | Attribute Mapping & Offboarding (8%) |
 
 Weights reference the official [Okta Certified Professional Performance Exam Study Guide](https://certification.okta.com/page/professional-performance-exam-study-guide).
 
@@ -52,7 +52,6 @@ labs/
   00-domain-controller-setup/ ... 06-jml-automation/
     README.md          objective, environment, steps, verification, notes
     screenshots/        supporting screenshots as I complete each lab
-  06-jml-automation/scripts/   working PowerShell for the lifecycle automation lab
 templates/
   LAB_TEMPLATE.md
 tools/
