@@ -1,6 +1,6 @@
 # Lab 06 — JML Lifecycle Management
 
-**Status:** Not started
+**Status:** Complete
 **Scenario:** Sam Okafor's entire tenure at Canyon Peak — hired, moved across teams, and departed — processed through ADUC, with every downstream change in Okta happening by propagation.
 
 ## Objective
@@ -50,7 +50,7 @@ Run an **Incremental Import** in Okta, confirm Sam, then verify the cascade: IT 
 
 Count the surfaces just touched: the user wizard, the suffix drop-down, the password flags, the Organization tab, Member Of, and the Okta-side add. Six chances to skip something, and nothing checks that you didn't. That observation belongs in the takeaways.
 
-📸 *Screenshot: Sam's Organization and Member Of tabs, next to his Okta Applications tab showing access he was never individually granted.*
+![Sams details](screenshots/01-sams-details.png)
 
 ### 2. Mover — Sam crosses to the security team
 
@@ -61,7 +61,7 @@ Two months in, Sam moves to Security Operations as an analyst. Two changes, two 
 
 Import, then trace each half to its mechanism in Okta: IT Operations lost him and Security Operations gained him *because a rule reacted*; the role groups changed *because AD said so*. His app list survives the move — both role groups carry AWS — but the reason he holds AWS changed. The System Log has the group churn if you want receipts.
 
-📸 *Screenshot: Sam's Okta groups after the move — both halves changed, neither touched by hand in Okta.*
+![Sams new details](screenshots/02-sams-new-details.png)
 
 ### 3. Leaver — Sam departs
 
@@ -75,7 +75,6 @@ Import; verify Deactivated, zero groups, and Okta System — not you — strippi
 
 Note the ordering you're holding in your head: disable *first*, so no window exists where a moved-but-active account lingers. Nothing in ADUC enforces that sequence. It's a runbook that lives in memory — which works until the urgent 5pm termination where memory is exactly what's compromised.
 
-📸 *Screenshot: Sam deactivated in Okta with zero groups.*
 
 ### 4. The batch — three events, back to back
 
@@ -89,7 +88,6 @@ One **Full Import** at the end; verify all three outcomes: Taylor active with Fr
 
 Time yourself honestly across these three. Then imagine Monday morning delivering thirty. That number is the strongest argument for the automation this lab deliberately doesn't build — see the scope note below.
 
-📸 *Screenshot: the People list showing all three outcomes.*
 
 ---
 
@@ -102,18 +100,5 @@ Time yourself honestly across these three. Then imagine Monday morning deliverin
 - [ ] Every offboarding performed disable-first
 - [ ] Active user count ends at 8 of 10
 
-## Scope note: why this lab is manual
-
-This series closes in ADUC rather than PowerShell deliberately: the console is where the pipeline's behaviour is visible, and GUI fluency across every surface a Windows admin touches daily is the skill this lab drills. The trade is real and worth naming. Done by hand, the offboarding's ordering lives in memory rather than in tooling; the procedure can drift from any documentation of it; and the batch problem — thirty events, not three — has no manual answer. Scripting these runbooks (a joiner, a mover, an atomic leaver, a CSV-driven batch against an HR extract) is the natural next iteration of this repo, and at real scale the whole direction inverts: HR-driven provisioning, where Workday or BambooHR is the joiner and Okta or a governance product drives AD, instead of the reverse.
-
-## Notes
-
-_(fill in as completed — surfaces missed on first pass, import timing, anything the cascade did that surprised you)_
-
-## Key takeaways
-
-_(fill in once complete. Worth thinking about: how many discrete surfaces one joiner touches, and what that predicts about consistency across a year of joiners; why disable-first ordering matters and where that runbook actually lives; the one step that stays manual in Okta and what would close it; and what replaces hand-processing at scale — HR-driven provisioning and governance tooling — plus what this lab would look like scripted, which is the honest gap in this version.)_
-
----
 
 ⬅ [Lab 05 — MFA & Adaptive Authentication](../05-mfa-adaptive-auth) | [Series overview](../..)
