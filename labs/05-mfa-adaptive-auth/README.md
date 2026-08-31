@@ -148,10 +148,6 @@ Okta Verify FastPass can satisfy both factor types at once — possession plus d
 - [ ] Off-network sign-ins match the off-network rule, confirmed via `policy.evaluate_sign_on` events
 - [ ] Employee enrollment policy priority sits above Default
 
-## Before you commit screenshots
-
-**Your public IP appears in the Networks page and possibly in System Log event detail. Blur it everywhere.** It's the single most identifying artifact this series produces — a `/32` in a zone called HQ is your house. Everything else here is lab-fictional or a documentation range.
-
 ## Notes
 
 The one that would have locked everyone out: the High Assurance rule editor arrived with the **phishing resistant** possession constraint already ticked. Saved that way, the rule is satisfiable only by FIDO2/WebAuthn-class factors — and nobody in this org holds one, so the most privileged users would have been the ones unable to open AWS. The tell isn't in the editor, it's on the saved rule card: it has to list FastPass *or TOTP* as satisfying factors. FastPass alone means the constraint is still on. Reading the card after saving, rather than trusting what the editor showed, is the habit worth keeping — same lesson as Lab 01's policy hunt, in a smaller package.

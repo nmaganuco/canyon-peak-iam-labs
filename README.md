@@ -52,8 +52,6 @@ labs/
   00-domain-controller-setup/ ... 06-jml-automation/
     README.md          objective, environment, steps, verification, notes
     screenshots/        supporting screenshots as I complete each lab
-templates/
-  LAB_TEMPLATE.md
 tools/
   Add-LabScreenshot.ps1        files screenshots into the right lab, numbered
 RESOURCES.md

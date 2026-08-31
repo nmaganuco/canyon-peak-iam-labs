@@ -269,12 +269,6 @@ For a stronger version of the same test, change Marcus Webb's `department` in AD
 - [ ] An AD attribute change reaches the Okta profile after an incremental import
 - [ ] `test.jit` deactivated
 
-## Before you commit screenshots
-
-Same as Lab 01 for the org URL. New in this lab: the **agent registration token** appears once during installation — don't capture it, and don't record it anywhere. If you lose it, deregister the agent in Okta and re-run the installer.
-
-Also avoid capturing the `svc-oktaagent` password during the installer's credential prompt, and be careful with any screenshot of the DC that includes the domain admin session.
-
 ## Notes
 
 Related: the **Test Delegated Authentication** button reports a bare failure with no detail and doesn't appear to log anything useful. A real sign-in is the better test, because it produces System Log events you can actually read.
