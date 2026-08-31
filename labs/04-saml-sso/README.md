@@ -11,7 +11,7 @@ Three applications, three sensitivity levels, and — deliberately — three dif
 |---|---|---|---|
 | Freshservice PSA | Ticketing — the whole company | Canyon Peak Employees **and** Canyon Peak Contractors | Manual population groups |
 | Confluence Wiki | Internal technical docs | IT Operations, Security Operations | Rule-driven department groups |
-| AWS Management Console | Cloud infrastructure | Systems Administrators, Security Analysts | AD-synced role groups |
+| AWS Management Console | Cloud infrastructure | System Administrators, Security Analysts | AD-synced role groups |
 
 That's the Lab 03 table put to work: population membership grants the universal tool, a profile attribute grants the departmental tool, and an access decision made in Active Directory grants the sensitive one. No application is ever assigned to an individual. When someone joins, moves, or leaves, their app access changes because their *group* memberships change — which is the entire argument for the pipeline built in Labs 01–03.
 
@@ -20,7 +20,7 @@ The SAML integrations themselves use placeholder Service Provider endpoints. The
 ## Prerequisites
 
 - Labs 01–03 complete: both populations in place, department rules firing, role groups synced from AD
-- Current role membership: Systems Administrators = Alex, Elena; Security Analysts = Priya (Derek is deactivated — his slot in the model simply has nobody in it, which is fine)
+- Current role membership: System Administrators = Alex, Elena; Security Analysts = Priya (Derek is deactivated — his slot in the model simply has nobody in it, which is fine)
 - Dana and Alex enrolled in Okta Verify — they're the two dashboard test subjects in step 5
 
 No new users this lab. The budget stays at 8 of 10.
@@ -84,7 +84,7 @@ Repeat again:
 | Single Sign-On URL | `https://canyonpeak.aws.example/saml/acs` |
 | Audience URI | `https://canyonpeak.aws.example/saml/metadata` |
 
-Assign to **Systems Administrators** and **Security Analysts** — the AD-synced role groups. Three people hold this app: Alex, Elena, Priya. Nobody gets it from an org-chart attribute; membership is an access decision made in ADUC, synced in, and revocable the same way. This is the most sensitive app in the portfolio, and in Lab 05 it gets step-up authentication on top.
+Assign to **System Administrators** and **Security Analysts** — the AD-synced role groups. Three people hold this app: Alex, Elena, Priya. Nobody gets it from an org-chart attribute; membership is an access decision made in ADUC, synced in, and revocable the same way. This is the most sensitive app in the portfolio, and in Lab 05 it gets step-up authentication on top.
 
 ![AWS Application](screenshots/01-aws-application.png)
 
@@ -119,15 +119,6 @@ The **SCIM 2.0 Test App** from Lab 03 has served its purpose as the sprawl targe
 - [ ] No application has any individual (person-level) assignment
 - [ ] Per-user Applications tabs match the access matrix
 - [ ] Dana's dashboard shows two tiles; Alex's shows three
-
-
-## Notes
-
-The offboarding actually fires two independent mechanisms, and it's worth knowing you have both: the disabled flag syncs as deactivation, and the OU move takes the account out of the agent's import scope entirely — which only works because Lab 02 deliberately left `canyonpeak-disabled` unscoped. Either alone would have cut his access; together, one covers for the other being forgotten.
-
-## Key takeaways
-
-The tenant now runs three membership models side by side, and each is the right tool for exactly one kind of group. Population groups (Employees, Contractors) are manual because "is an employee" is a fact about a contract, not derivable from any attribute. Department groups are rule-driven because they *are* derivable, so maintaining them by hand just means drift. Role groups live in AD because role assignment is an access decision, and access decisions belong in the source-of-truth directory where the JML process already operates. Picking the wrong model is how orgs end up with a rule fighting a manual override, or a "role" group nobody remembers the criteria for.
 
 ---
 

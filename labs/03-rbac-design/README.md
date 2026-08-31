@@ -5,7 +5,7 @@
 
 ## Objective
 
-Department groups describe the org chart; they don't describe access. This lab adds **role groups** — Systems Administrators and Security Analysts, the two job families access decisions actually hang off — as Active Directory security groups that sync into Okta. Then it stress-tests the model twice: once by manufacturing the kind of ad hoc app assignment that erodes RBAC in real environments and tracing it through the System Log, and once by offboarding an employee entirely from the AD side.
+Department groups describe the org chart; they don't describe access. This lab adds **role groups** — System Administrators and Security Analysts, the two job families access decisions actually hang off — as Active Directory security groups that sync into Okta. Then it stress-tests the model twice: once by manufacturing the kind of ad hoc app assignment that erodes RBAC in real environments and tracing it through the System Log, and once by offboarding an employee entirely from the AD side.
 
 These are also the first AD groups to reach Okta. Lab 02 deliberately imported users only, so after this lab the tenant demonstrates **three different membership models side by side**:
 
@@ -13,7 +13,7 @@ These are also the first AD groups to reach Okta. Lab 02 deliberately imported u
 |---|---|---|
 | Canyon Peak Contractors / Employees | Manual assignment in Okta | "Is an employee" is a fact about the employment relationship, not an attribute |
 | IT Operations, Security Operations, Client Services, Finance | Okta group rules on `department` | Derivable from the profile, so it should never be maintained by hand |
-| Systems Administrators, Security Analysts | AD security group membership, synced | Role assignment is an access decision made in the source-of-truth directory |
+| System Administrators, Security Analysts | AD security group membership, synced | Role assignment is an access decision made in the source-of-truth directory |
 
 Knowing which model fits which kind of group — and being able to say why — is worth more than any single one of them.
 
@@ -42,19 +42,19 @@ Two hires arrive in this lab and one leaves: 7 active users → 9 → 8. Still u
 
 | Group name | Scope | Type |
 |---|---|---|
-| Systems Administrators | Global | Security |
+| System Administrators | Global | Security |
 | Security Analysts | Global | Security |
 
-Add the existing employees to their roles: open each group → **Members tab → Add** — **Alex Rivera** into Systems Administrators, **Priya Nair** into Security Analysts. Marcus and Jordan hold no role group; not everyone does, and that's the point — role membership should mean something.
+Add the existing employees to their roles: open each group → **Members tab → Add** — **Alex Rivera** into System Administrators, **Priya Nair** into Security Analysts. Marcus and Jordan hold no role group; not everyone does, and that's the point — role membership should mean something.
 
 <details>
 <summary>PowerShell equivalent</summary>
 
 ```powershell
 $ou = "OU=CanyonPeak-Groups,DC=corp,DC=canyonpeaktech,DC=com"
-New-ADGroup -Name "Systems Administrators" -GroupScope Global -GroupCategory Security -Path $ou
+New-ADGroup -Name "System Administrators" -GroupScope Global -GroupCategory Security -Path $ou
 New-ADGroup -Name "Security Analysts"      -GroupScope Global -GroupCategory Security -Path $ou
-Add-ADGroupMember -Identity "Systems Administrators" -Members alex.rivera
+Add-ADGroupMember -Identity "System Administrators" -Members alex.rivera
 Add-ADGroupMember -Identity "Security Analysts"      -Members priya.nair
 ```
 </details>
@@ -67,7 +67,7 @@ Canyon Peak is growing. **ADUC → `CanyonPeak-Users` → New → User**, twice:
 
 | First | Last | User logon name | UPN suffix | Department | Job title | Role group |
 |---|---|---|---|---|---|---|
-| Elena | Vasquez | `elena.vasquez` | `@canyonpeaktech.com` | IT Operations | Systems Administrator | Systems Administrators |
+| Elena | Vasquez | `elena.vasquez` | `@canyonpeaktech.com` | IT Operations | Systems Administrator | System Administrators |
 | Derek | Boone | `derek.boone` | `@canyonpeaktech.com` | Security Operations | Security Analyst | Security Analysts |
 
 Same rules as Lab 02: the **short UPN suffix** from the drop-down, and `department` + title on the **Organization** tab — the department drives the Okta group rules, so set it before the import, not after.
@@ -80,7 +80,7 @@ Then add each to their role group in AD.
 
 Now check **Directory → Groups**, because one import just exercised every model in the table above:
 
-- **Systems Administrators** and **Security Analysts** appear for the first time — with the Active Directory icon. Open one: Elena is in it, and there's no way to edit membership from Okta. It's managed in AD, and the console says so.
+- **System Administrators** and **Security Analysts** appear for the first time — with the Active Directory icon. Open one: Elena is in it, and there's no way to edit membership from Okta. It's managed in AD, and the console says so.
 - **IT Operations** gained Elena and **Security Operations** gained Derek — the Lab 01 group rules fired on their `department` values, same as they did for the Lab 02 staff.
 - **Canyon Peak Employees** did *not* gain anyone. It's manual. Add Elena and Derek yourself: **Canyon Peak Employees → People → Assign People.**
 
@@ -92,7 +92,7 @@ That last one is friction, and it's worth feeling: the manual model means every 
 
 The next step needs an application to mis-assign. **Applications → Applications → Browse App Catalog**, search for **SCIM 2.0 Test App (Header Auth)**, and add it with defaults — no provisioning config, no credentials. It exists purely as an assignment target; Lab 04 builds the real app portfolio.
 
-Assign it properly first, the way the RBAC model says to: **Assignments → Assign to Groups → Systems Administrators.** Alex and Elena now have it, through their role. Nobody else does.
+Assign it properly first, the way the RBAC model says to: **Assignments → Assign to Groups → System Administrators.** Alex and Elena now have it, through their role. Nobody else does.
 
 ### 5. Manufacture the sprawl, then catch it
 
@@ -130,10 +130,10 @@ Note what deactivation is *not*: deletion. His account, his System Log history, 
 
 ## Verification
 
-- [ ] Systems Administrators and Security Analysts exist in AD and in Okta, AD-sourced, with membership uneditable in Okta
+- [ ] System Administrators and Security Analysts exist in AD and in Okta, AD-sourced, with membership uneditable in Okta
 - [ ] Elena and Derek imported with correct departments; group rules placed them automatically
 - [ ] Elena and Derek manually added to Canyon Peak Employees
-- [ ] SCIM test app assigned to Systems Administrators only; Alex and Elena hold it via the group
+- [ ] SCIM test app assigned to System Administrators only; Alex and Elena hold it via the group
 - [ ] Jordan's direct assignment found via `application.user_membership.add` in the System Log, then removed
 - [ ] Derek shows Deactivated in Okta with zero groups, after AD-only changes
 - [ ] Derek's account sits disabled in `CanyonPeak-Disabled`

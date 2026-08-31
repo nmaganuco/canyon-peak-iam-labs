@@ -1,6 +1,6 @@
 # Lab 05 — MFA & Adaptive Authentication
 
-**Status:** Not started
+**Status:** Complete
 **Scenario:** Making authentication requirements proportional to risk — network-aware policy for the general portfolio, step-up for AWS, and enrollment standards that stop weak factors from ever satisfying any of it.
 
 ## Objective
@@ -102,7 +102,7 @@ Assign the **AWS Management Console** app to this policy.
 
 **Test it as Alex, mid-session.** Sign in to the dashboard as Alex (AD password + Okta Verify), open Freshservice — no new challenge, session's good — then click AWS: **fresh password and Okta Verify prompt, despite the active session.** Then the dead redirect, which you now expect. That mid-session re-challenge is the behaviour the whole policy exists for.
 
-![re-authenitcation](screenshots/02-re-authenitcation.png)
+![re-authentication](screenshots/02-re-authentication.png)
 
 ### 5. Employee enrollment policy — kill the email factor
 
@@ -132,8 +132,6 @@ Steps 3's rules have only been exercised from the trusted zone so far. Now leave
 
 Then check the receipts: **Reports → System Log**, search `eventType eq "policy.evaluate_sign_on"`. Each evaluation names the policy and the rule that matched — the off-network events show `Employees off network` where the at-home ones show `Employees on trusted network`. That per-event rule attribution is also your first diagnostic stop whenever a policy behaves unexpectedly, which — per Labs 01 and 02 — is a matter of when, not if.
 
-📸 *Screenshot: two `policy.evaluate_sign_on` events for the same user matching different rules from different networks.*
-
 ### 7. Optional: FastPass and passwordless
 
 Okta Verify FastPass can satisfy both factor types at once — possession plus device biometric — which is what "passwordless" concretely means in Okta: rules satisfied without the password ever being typed. Enabling it (**Authenticators → Okta Verify → Actions → Edit → FastPass**) is one toggle, but *experiencing* it requires device registration through Okta Verify, and the payoff on a lab tenant is modest. Worth doing if you're curious; worth skipping if you're moving — but either way, be able to say what FastPass is, because "how would you go passwordless" is a fair interview question and the answer is this feature plus the phishing-resistant possession constraint from Lab 01.
@@ -156,11 +154,19 @@ Okta Verify FastPass can satisfy both factor types at once — possession plus d
 
 ## Notes
 
-_(fill in as completed — zone evaluation surprises, rule-ordering mistakes caught, what the System Log showed)_
+The one that would have locked everyone out: the High Assurance rule editor arrived with the **phishing resistant** possession constraint already ticked. Saved that way, the rule is satisfiable only by FIDO2/WebAuthn-class factors — and nobody in this org holds one, so the most privileged users would have been the ones unable to open AWS. The tell isn't in the editor, it's on the saved rule card: it has to list FastPass *or TOTP* as satisfying factors. FastPass alone means the constraint is still on. Reading the card after saving, rather than trusting what the editor showed, is the habit worth keeping — same lesson as Lab 01's policy hunt, in a smaller package.
+
+The rest of the build behaved. Zones took effect exactly as scoped, and the blocked-zone warning from step 2 is worth repeating: Okta evaluates blocked zones before any policy, org-wide, the moment you save one — a fat-fingered range in there is an outage, not a policy mistake.
 
 ## Key takeaways
 
-_(fill in once complete. Worth thinking about: why the contractor rule must sit above the network rules, and what a contractor on your home Wi-Fi would get if it didn't; what step-up actually protects against that session-length MFA doesn't; why email-as-factor undermines every policy above it, and where else recovery channels masquerade as authenticators; and what `policy.evaluate_sign_on` gives you that no policy screen can — the Lab 02 lesson, now applied to policy instead of credentials.)_
+The contractor rule sits above the network rules because zones can't tell populations apart. A zone answers one question — where is this request coming from — and my home network is inside the HQ zone. If the on-network rule evaluated first, a contractor working from this Wi-Fi would match it and walk into the 1-factor discount built for managed corporate devices. First match wins, so the rule order *is* the policy; the stack has to sort by who before it sorts by where.
+
+Step-up protects against something session MFA can't: the gap between "this person authenticated an hour ago" and "this person is at the keyboard right now, about to touch infrastructure." A hijacked or borrowed session sails past session-length MFA — it already happened. Prompting every access for AWS means the session itself is never sufficient credential for the highest tier, which is precisely the property you want for the app that can delete the company.
+
+Email-as-factor undermines every policy stacked above it, because anyone who owns the mailbox owns the factor — the careful password + Okta Verify requirement quietly degrades to password + mailbox. Recovery channels masquerading as authenticators is a pattern worth hunting elsewhere too: SMS is the famous one, but security questions and recovery codes stored in the same mailbox fail the same way. Disabling enrollment is the only fix that holds, because a factor that can't be enrolled can't satisfy anything.
+
+And `policy.evaluate_sign_on` gives you the one thing no policy screen can: which rule actually fired for a specific sign-in. The admin console shows intent — rules in priority order, conditions, requirements. The System Log shows outcome, per event, with the matched rule named. Lab 02 taught this about credentials; it's just as true of policy, and it's the first place to look when a sign-in behaves in a way the policy screens say it shouldn't.
 
 ---
 

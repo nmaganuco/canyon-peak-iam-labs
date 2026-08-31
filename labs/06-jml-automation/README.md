@@ -44,11 +44,11 @@ Peak of 9 — the cap survives the whole lab.
 | User logon name | `sam.okafor` @ **`canyonpeaktech.com`** (the short suffix, from the drop-down) |
 | Password | Temporary, *User must change password at next logon* ticked |
 
-After creation, open his **Properties → Organization** tab: Department `IT Operations`, Job title `Systems Administrator`. Then **Member Of → Add → Systems Administrators**.
+After creation, open his **Properties → Organization** tab: Department `IT Operations`, Job title `Systems Administrator`. Then **Member Of → Add → System Administrators**.
 
-Run an **Incremental Import** in Okta, confirm Sam, then verify the cascade: IT Operations group (rule fired on the attribute), Systems Administrators group (AD sync), and — via those — Freshservice, Confluence, and AWS on his Applications tab. One user created, one import, and Lab 04's entire access matrix applied itself. Finally, add him to **Canyon Peak Employees** in Okta — the manual population group, manual by design since Lab 01.
+Run an **Incremental Import** in Okta, confirm Sam, then verify the cascade: IT Operations group (rule fired on the attribute), System Administrators group (AD sync), and — via those — Freshservice, Confluence, and AWS on his Applications tab. One user created, one import, and Lab 04's entire access matrix applied itself. Finally, add him to **Canyon Peak Employees** in Okta — the manual population group, manual by design since Lab 01.
 
-Count the surfaces just touched: the user wizard, the suffix drop-down, the password flags, the Organization tab, Member Of, and the Okta-side add. Six chances to skip something, and nothing checks that you didn't. That observation belongs in the takeaways.
+Count the surfaces just touched: the user wizard, the suffix drop-down, the password flags, the Organization tab, Member Of, and the Okta-side add. Six chances to skip something, and nothing checks that you didn't — the process lives in the operator's memory, which is another way of saying it isn't a process yet.
 
 ![Sams details](screenshots/01-sams-details.png)
 
@@ -57,9 +57,9 @@ Count the surfaces just touched: the user wizard, the suffix drop-down, the pass
 Two months in, Sam moves to Security Operations as an analyst. Two changes, two different tabs, two different mechanisms:
 
 1. **Properties → Organization**: Department → `Security Operations`, Job title → `Security Analyst` — the *attribute* half; Okta's group rules move him between department groups on import.
-2. **Member Of**: remove `Systems Administrators`, add `Security Analysts` — the *membership* half; sync carries it directly.
+2. **Member Of**: remove `System Administrators`, add `Security Analysts` — the *membership* half; sync carries it directly.
 
-Import, then trace each half to its mechanism in Okta: IT Operations lost him and Security Operations gained him *because a rule reacted*; the role groups changed *because AD said so*. His app list survives the move — both role groups carry AWS — but the reason he holds AWS changed. The System Log has the group churn if you want receipts.
+Import, then trace each half to its mechanism in Okta: IT Operations lost him and Security Operations gained him *because a rule reacted*; the role groups change *because AD says so*. His app list survives the move — both role groups carry AWS — but the reason he holds AWS changed. The System Log has the group churn if you want receipts. (Full disclosure: my own run took the console's convenient path on the membership half — I added Security Analysts to Sam directly in Okta, which is why his Groups tab reads *Manually managed* in the screenshot below. The AD-side change is the model's way; shortcuts like mine are exactly how source-of-truth drift starts, so it stays documented rather than reshot.)
 
 ![Sams new details](screenshots/02-sams-new-details.png)
 
@@ -81,7 +81,7 @@ Note the ordering you're holding in your head: disable *first*, so no window exi
 Real lifecycle events arrive in batches from HR, not one at a time. Process one of each, serially:
 
 1. **Join Taylor Brooks** — the full step 1 procedure again: wizard, suffix, password flags, Organization tab (`Client Services` / `Support Technician`), no role group, import, manual Okta population add.
-2. **Move Elena Vasquez** — Member Of only: remove `Systems Administrators`, add `Security Analysts`. A role-only move; no attribute touched.
+2. **Move Elena Vasquez** — Member Of only: remove `System Administrators`, add `Security Analysts`. A role-only move; no attribute touched.
 3. **Leave Marcus Webb** — the three-action offboarding, disable first, again.
 
 One **Full Import** at the end; verify all three outcomes: Taylor active with Freshservice only, Elena holding AWS via her new role group, Marcus deactivated with nothing.
@@ -99,6 +99,6 @@ Time yourself honestly across these three. Then imagine Monday morning deliverin
 - [ ] Taylor is active with Freshservice; Elena holds AWS via Security Analysts; Marcus is deactivated
 - [ ] Every offboarding performed disable-first
 - [ ] Active user count ends at 8 of 10
-
+---
 
 ⬅ [Lab 05 — MFA & Adaptive Authentication](../05-mfa-adaptive-auth) | [Series overview](../..)
