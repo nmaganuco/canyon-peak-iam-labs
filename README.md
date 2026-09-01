@@ -1,5 +1,7 @@
 # IAM Lab Series — Canyon Peak Technologies
 
+![Canyon Peak IAM architecture — isometric illustration: an Active Directory rack syncing into a cloud identity core that feeds downstream SaaS apps](assets/readme-hero.png)
+
 A hands-on Okta/Active Directory series I'm building while studying for the **Okta Certified Professional Performance Exam**: one environment-build lab (Lab 00) followed by six Okta-focused labs. Every lab runs against a fictional company scenario — Canyon Peak Technologies — so the write-ups read as a real IAM portfolio project rather than a checklist.
 
 The series walks the full identity lifecycle end to end — tenant → directory → access model → SSO → adaptive auth → automation — which is how these skills actually get used in an IAM Analyst role, not just how they get graded. Each lab's write-up records what I configured, what broke, and how I worked it out.
