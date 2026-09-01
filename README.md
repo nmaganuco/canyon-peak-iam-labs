@@ -56,7 +56,3 @@ tools/
   Add-LabScreenshot.ps1        files screenshots into the right lab, numbered
 RESOURCES.md
 ```
-
-## Status
-
-All seven labs complete, run end to end in the live environment. Each write-up carries verification steps, screenshots from the actual build, and Notes on what broke or surprised me along the way — the deviations are documented rather than reshot, because working out why something didn't behave is most of what these labs were for.
